@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { adminMiddleware } from "@/middlewares/adminMiddleware";
-import { getAllServices, addService, removeService } from "@/services/admin/serviceService";
+import { addService, removeService, updateService } from "@/services/admin/serviceService";
 import { connectDb } from "@/lib/dbConnect";
 import Service from "@/database/serviceModel";
 
@@ -26,13 +26,34 @@ export async function POST(req: NextRequest) {
     if (adminAuthResponse.status !== 200) return adminAuthResponse;
 
     try {
-        const { serviceName, basePrice, category } = await req.json();
-        const newService = await addService({ serviceName, basePrice, category, priceUnit: 'fixed' });
+        const { serviceName, basePrice, category, description } = await req.json();
+        const newService = await addService({ serviceName, basePrice, category, description, priceUnit: 'fixed' });
         return NextResponse.json(newService, { status: 201 });
     } catch (error) {
         return NextResponse.json({ message: "An error occurred" }, { status: 500 });
     }
 }
+
+export async function PATCH(req: NextRequest) {
+    await connectDb();
+    const adminAuthResponse = await adminMiddleware(req);
+    if (adminAuthResponse.status !== 200) return adminAuthResponse;
+    
+    try {
+        const { _id, ...updateData } = await req.json();
+        if (!_id) {
+            return NextResponse.json({ message: "Service ID is required" }, { status: 400 });
+        }
+        const updatedService = await updateService(_id, updateData);
+        if (!updatedService) {
+            return NextResponse.json({ message: "Service not found" }, { status: 404 });
+        }
+        return NextResponse.json(updatedService);
+    } catch (error) {
+        return NextResponse.json({ message: "An error occurred during update" }, { status: 500 });
+    }
+}
+
 
 export async function DELETE(req: NextRequest) {
     await connectDb();

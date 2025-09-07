@@ -43,6 +43,8 @@ export default function LoginPage() {
     mutationFn: loginUser,
     onSuccess: (data) => {
       localStorage.setItem('admin_token', data.token);
+      // Store user info to be used in the settings page
+      localStorage.setItem('admin_user', JSON.stringify(data.user));
       router.push('/dashboard');
     },
   });

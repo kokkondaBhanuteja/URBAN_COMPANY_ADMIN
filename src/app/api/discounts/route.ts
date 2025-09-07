@@ -4,6 +4,7 @@ import {
   deleteDiscount,
   getAllDiscounts,
   updateDiscount,
+  searchDiscounts,
 } from "@/services/admin/discountService";
 import { connectDb } from "@/lib/dbConnect";
 import { adminMiddleware } from "@/middlewares/adminMiddleware";
@@ -13,7 +14,15 @@ export async function GET(req: NextRequest) {
   const adminAuthResponse = await adminMiddleware(req);
   if (adminAuthResponse.status !== 200) return adminAuthResponse;
   try {
-    const discounts = await getAllDiscounts();
+    const { searchParams } = new URL(req.url);
+    const searchQuery = searchParams.get("search");
+    const page = parseInt(searchParams.get("page") || "1", 10);
+    const limit = parseInt(searchParams.get("limit") || "10", 10);
+    if (searchQuery) {
+      const discounts = await searchDiscounts(searchQuery);
+      return NextResponse.json(discounts);
+    }
+    const discounts = await getAllDiscounts(page, limit);
     return NextResponse.json(discounts);
   } catch (error) {
     return NextResponse.json(

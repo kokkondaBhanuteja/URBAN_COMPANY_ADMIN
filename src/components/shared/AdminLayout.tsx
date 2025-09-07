@@ -21,7 +21,7 @@ import Loader from "./Loader"
 
 const sidebarItems = [
   { href: "/dashboard", icon: BarChart, label: "Dashboard" },
-  { href: "/users", icon: Users, label: "Users" },
+  { href: "/users", icon: Users, label: "Consumers" }, // Changed "Users" to "Consumers"
   { href: "/providers", icon: UserCheck, label: "Providers" },
   { href: "/bookings", icon: Calendar, label: "Bookings" },
   { href: "/payments", icon: DollarSign, label: "Payments" },
@@ -47,6 +47,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   const handleLogout = () => {
     localStorage.removeItem("admin_token")
+    localStorage.removeItem("admin_user") // Also clear user data
     router.push("/login")
   }
 

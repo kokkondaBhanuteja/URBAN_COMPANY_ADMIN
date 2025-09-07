@@ -1,4 +1,3 @@
-// src/app/(admin)/dashboard/page.tsx
 "use client";
 
 import { useQuery } from '@tanstack/react-query';
@@ -42,7 +41,7 @@ export default function DashboardPage() {
     <div className="space-y-6">
       <h2 className="text-3xl font-bold tracking-tight">Dashboard</h2>
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <StatCard title="Total Users" value={reports?.totalUsers ?? 0} icon={Users} />
+        <StatCard title="Total Consumers" value={reports?.totalUsers ?? 0} icon={Users} />
         <StatCard title="Service Providers" value={reports?.totalProviders ?? 0} icon={UserCheck} />
         <StatCard title="Total Bookings" value={reports?.totalBookings ?? 0} icon={Calendar} />
         <StatCard title="Revenue" value={`$${reports?.totalRevenue.toFixed(2) ?? '0.00'}`} icon={DollarSign} />

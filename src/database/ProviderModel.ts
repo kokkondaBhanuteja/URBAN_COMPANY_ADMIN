@@ -1,56 +1,35 @@
 import mongoose, { Document, Schema, Types } from "mongoose";
 
-export interface IAvailability {
-  startTime: Date;
-  endTime: Date;
-  isUnavailable: boolean;
-}
-
-export interface IProvider extends Document {
-  userId: Types.ObjectId; // Ref to User
-  bio?: string;
-  averageRating: number;
-  isVerified: boolean;
-  isActive: boolean;
-  onboardingDate: Date;
-  servicesOffered: Types.ObjectId[]; // Ref to Service
-  serviceableLocations: Types.ObjectId[]; // Ref to Location
-  availability: IAvailability[];
+export interface IPayment extends Document {
+  bookingId: Types.ObjectId;
+  amount: number;
+  paymentStatus: "pending" | "completed" | "failed";
+  paymentMethod: "net-banking" | "upi" | "credit-card" | "debit-card";
+  transactionId?: string;
   createdAt: Date;
   updatedAt: Date;
 }
 
-const availabilitySchema = new Schema<IAvailability>(
+const paymentSchema = new Schema<IPayment>(
   {
-    startTime: { type: Date, required: true },
-    endTime: { type: Date, required: true },
-    isUnavailable: { type: Boolean, default: false },
-  },
-  { _id: false } // subdocument, no need for _id
-);
-
-const providerSchema = new Schema<IProvider>(
-  {
-    userId: {
-      type: Schema.Types.ObjectId,
-      ref: "User",
-      required: true,
-      unique: true,
+    bookingId: { type: Schema.Types.ObjectId, ref: "Booking", required: true },
+    amount: { type: Number, required: true },
+    paymentStatus: {
+      type: String,
+      enum: ["pending", "completed", "failed"],
+      default: "pending",
     },
-    bio: { type: String },
-    averageRating: { type: Number, default: 0 },
-    isVerified: { type: Boolean, default: false },
-    isActive: { type: Boolean, default: true, index: true },
-    onboardingDate: { type: Date, default: Date.now },
-
-    servicesOffered: [{ type: Schema.Types.ObjectId, ref: "Service" }],
-    serviceableLocations: [{ type: Schema.Types.ObjectId, ref: "Location" }],
-
-    availability: [availabilitySchema],
+    paymentMethod: {
+      type: String,
+      enum: ["net-banking", "upi", "credit-card", "debit-card"],
+      required: true,
+    },
+    transactionId: { type: String },
   },
   { timestamps: true }
 );
 
-const Provider = mongoose.models.Provider || mongoose.model<IProvider>("Provider", providerSchema);
+const Payment =
+  mongoose.models.Payment || mongoose.model<IPayment>("Payment", paymentSchema);
 
-export default Provider;
+export default Payment;

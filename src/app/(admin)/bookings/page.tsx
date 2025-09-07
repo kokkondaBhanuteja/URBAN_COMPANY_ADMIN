@@ -17,7 +17,7 @@ interface IBooking {
     totalPrice: number;
 }
 
-async function fetchBookings() {
+async function fetchBookings(): Promise<IBooking[]> {
     const token = localStorage.getItem('admin_token');
     const res = await fetch('/api/bookings', {
         headers: { Authorization: `Bearer ${token}` },
@@ -62,7 +62,7 @@ export default function BookingsPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {bookings?.map((booking) => (
+            {Array.isArray(bookings) && bookings.map((booking) => (
               <TableRow key={booking._id}>
                 <TableCell>{booking._id}</TableCell>
                 <TableCell>{booking.consumerId.userName}</TableCell>

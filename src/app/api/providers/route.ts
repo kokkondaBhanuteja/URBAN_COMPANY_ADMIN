@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { adminMiddleware } from "@/middlewares/adminMiddleware";
-// **FIX**: Importing the new, correct function
 import { getAllProviders, deleteProvider, searchProviders, updateProviderVerification, getProviderStats } from "@/services/admin/providerService";
 import { connectDb } from "@/lib/dbConnect";
 
@@ -47,20 +46,16 @@ export async function DELETE(req: NextRequest) {
     }
 }
 
-// **FIXED PATCH HANDLER**
 export async function PATCH(req: NextRequest) {
     await connectDb();
     const adminAuthResponse = await adminMiddleware(req);
     if(adminAuthResponse.status !== 200) return adminAuthResponse;
 
     try {
-        // It now expects 'isVerified' (a boolean) instead of 'status' (a string)
         const { id, isVerified } = await req.json();
         if (typeof isVerified !== 'boolean') {
             return NextResponse.json({ message: "Invalid 'isVerified' value provided" }, { status: 400 });
         }
-
-        // It now calls the correct service function
         const updatedProvider = await updateProviderVerification(id, isVerified);
         return NextResponse.json(updatedProvider);
     } catch (error) {

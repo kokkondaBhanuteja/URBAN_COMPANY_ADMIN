@@ -10,7 +10,7 @@ import ErrorMessage from '@/components/shared/ErrorMessage';
 
 interface IPayment {
     _id: string;
-    bookingId: { _id: string };
+    bookingId: { _id: string } | null;
     amount: number;
     paymentStatus: string;
     paymentMethod: string;
@@ -21,7 +21,7 @@ interface IPaymentsData {
     totalRevenue: number;
 }
 
-async function fetchPayments() {
+async function fetchPayments(): Promise<IPaymentsData> {
     const token = localStorage.getItem('admin_token');
     const res = await fetch('/api/payments', {
         headers: { Authorization: `Bearer ${token}` },
@@ -69,7 +69,7 @@ export default function PaymentsPage() {
                 {data?.payments.map((payment) => (
                   <TableRow key={payment._id}>
                     <TableCell>{payment._id}</TableCell>
-                    <TableCell>{payment.bookingId._id}</TableCell>
+                    <TableCell>{payment.bookingId?._id ?? 'N/A'}</TableCell>
                     <TableCell>${payment.amount.toFixed(2)}</TableCell>
                     <TableCell>{payment.paymentStatus}</TableCell>
                     <TableCell>{payment.paymentMethod}</TableCell>
