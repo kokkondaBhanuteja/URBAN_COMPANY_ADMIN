@@ -26,18 +26,14 @@ async function fetchUsers(search: string, date: string) {
     const token = localStorage.getItem('admin_token');
     const url = new URL('/api/users', window.location.origin);
     if (search) url.searchParams.append('search', search);
-    // The backend doesn't seem to support date filtering, so we'll filter client-side
+    if (date) url.searchParams.append('date', date);
     const res = await fetch(url.toString(), {
         headers: { Authorization: `Bearer ${token}` },
     });
     if (!res.ok) {
         throw new Error('Failed to fetch users');
     }
-    let users = await res.json();
-    if (date) {
-        users = users.filter((user: IUser) => new Date(user.createdAt).toISOString().split('T')[0] === date);
-    }
-    return users;
+    return res.json();
 }
 
 async function deleteUser(userId: string) {

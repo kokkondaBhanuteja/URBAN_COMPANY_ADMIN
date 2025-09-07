@@ -10,6 +10,8 @@ export const getAllProviders = async (
   totalProviders: number;
 }> => {
   const skip = (page - 1) * limit;
+  console.log("Fetching providers...");
+  const totalProviders = await Provider.countDocuments();
   const providers = await Provider.find({})
     .populate({
       path: "userId",
@@ -18,35 +20,17 @@ export const getAllProviders = async (
     .skip(skip)
     .limit(limit)
     .lean();
-
-  const totalProviders = await Provider.countDocuments();
-
   return { providers, totalProviders };
 };
 
-export const getProviderById = async (
-  id: string
-): Promise<HydratedDocument<IProvider> | null> => {
-  return await Provider.findById(id).populate({
-    path: "userId",
-    model: User,
-  });
-};
-
-export const updateProvider = async (
-  id: string,
-  providerData: Partial<IProvider>
-): Promise<HydratedDocument<IProvider> | null> => {
-  return await Provider.findByIdAndUpdate(id, providerData, { new: true });
-};
-
-export const deleteProvider = async (id: string): Promise<void> => {
-  await Provider.findByIdAndDelete(id);
-};
-
-export const searchProviders = async (query: string): Promise<any[]> => {
+export const searchProviders = async (
+  query: string
+): Promise<{
+  providers: HydratedDocument<IProvider>[];
+  totalProviders: number;
+}> => {
   const searchQuery = new RegExp(query, "i");
-  return await Provider.aggregate([
+  const providers = await Provider.aggregate([
     {
       $lookup: {
         from: User.collection.name,
@@ -75,6 +59,27 @@ export const searchProviders = async (query: string): Promise<any[]> => {
       },
     },
   ]);
+  return { providers, totalProviders: providers.length };
+};
+
+export const getProviderById = async (
+  id: string
+): Promise<HydratedDocument<IProvider> | null> => {
+  return await Provider.findById(id).populate({
+    path: "userId",
+    model: User,
+  });
+};
+
+export const updateProvider = async (
+  id: string,
+  providerData: Partial<IProvider>
+): Promise<HydratedDocument<IProvider> | null> => {
+  return await Provider.findByIdAndUpdate(id, providerData, { new: true });
+};
+
+export const deleteProvider = async (id: string): Promise<void> => {
+  await Provider.findByIdAndDelete(id);
 };
 
 export const updateProviderVerification = async (

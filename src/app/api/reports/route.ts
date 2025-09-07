@@ -9,8 +9,8 @@ export async function GET(req: NextRequest) {
   if (adminAuthResponse.status !== 200) return adminAuthResponse;
 
   try {
-    const { totalUsers, totalBookings, totalRevenue, totalProviders, bookingsByService } = await getReports();
-    return NextResponse.json({ totalUsers, totalBookings, totalRevenue, totalProviders, bookingsByService });
+    const { totalUsers, totalBookings, totalRevenue, totalProviders, bookingsByCategory, paymentMethods } = await getReports();
+    return NextResponse.json({ totalUsers, totalBookings, totalRevenue, totalProviders, bookingsByCategory, paymentMethods });
   } catch (error) {
     return NextResponse.json({ message: "An error occurred" }, { status: 500 });
   }

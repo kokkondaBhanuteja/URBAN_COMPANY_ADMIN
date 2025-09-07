@@ -1,22 +1,34 @@
 // src/services/admin/bookingService.ts
 import Booking, { IBooking } from "@/database/bookingModel";
 import { HydratedDocument } from "mongoose";
-import "@/database/userModel";
+import User from "@/database/userModel";
 import "@/database/ProviderModel";
 import "@/database/serviceModel";
 
-export const getAllBookings = async (): Promise<HydratedDocument<IBooking>[]> => {
-  return await Booking.find({})
-    .populate("consumerId")
-    .populate("serviceId")
+export const getAllBookings = async (page: number, limit: number): Promise<{ bookings: HydratedDocument<IBooking>[], totalBookings: number }> => {
+  const skip = (page - 1) * limit;
+  const totalBookings = await Booking.countDocuments();
+  const bookings = await Booking.find({})
+    .populate({
+      path: 'consumerId',
+      model: User,
+      select: 'userName'
+    })
     .populate({
       path: "providerId",
       populate: {
         path: "userId",
         model: "User",
+        select: "userName",
       },
     })
+    .populate("serviceId")
+    .sort({ createdAt: -1 })
+    .skip(skip)
+    .limit(limit)
     .lean();
+
+  return { bookings, totalBookings };
 };
 
 export const getBookingById = async (id: string): Promise<HydratedDocument<IBooking> | null> => {
@@ -85,8 +97,18 @@ export const searchBookings = async (query: string): Promise<any[]> => {
         serviceId: '$serviceDetails',
         bookingStatus: 1,
         scheduledAt: 1,
-        totalPrice: 1
+        pricing: 1
       }
     }
   ]);
+};
+
+export const getBookingStats = async () => {
+    const total = await Booking.countDocuments();
+    const completed = await Booking.countDocuments({ bookingStatus: 'completed' });
+    const cancelled = await Booking.countDocuments({
+        bookingStatus: { $in: ['cancelled_by_user', 'cancelled_by_provider'] }
+    });
+
+    return { total, completed, cancelled };
 };

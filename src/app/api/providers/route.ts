@@ -15,19 +15,26 @@ export async function GET(req: NextRequest) {
   const limit = parseInt(searchParams.get('limit') || '10', 10);
 
   try {
-    if(getStats) {
-        const stats = await getProviderStats();
-        return NextResponse.json(stats);
+    console.log("In GET /api/providers");
+    if (getStats) {
+      console.log("Getting stats...");
+      const stats = await getProviderStats();
+      return NextResponse.json(stats);
     }
     if (searchQuery) {
-        const providers = await searchProviders(searchQuery);
-        return NextResponse.json({ providers, totalProviders: providers.length });
+      console.log("Searching for providers with query:", searchQuery);
+      const { providers, totalProviders } = await searchProviders(searchQuery);
+      return NextResponse.json({ providers, totalProviders });
     }
-    
+
+    console.log("Getting all providers...");
     const { providers, totalProviders } = await getAllProviders(page, limit);
+    console.log("Total Providers from service:", totalProviders);
+    console.log("Providers on this page from service:", providers);
     return NextResponse.json({ providers, totalProviders });
 
   } catch (error) {
+    console.error("Error in GET /api/providers:", error);
     return NextResponse.json({ message: "An error occurred" }, { status: 500 });
   }
 }
@@ -42,6 +49,7 @@ export async function DELETE(req: NextRequest) {
         await deleteProvider(id);
         return NextResponse.json({ message: "Provider deleted successfully" });
     } catch (error) {
+        console.error("Error in DELETE /api/providers:", error);
         return NextResponse.json({ message: "An error occurred" }, { status: 500 });
     }
 }
@@ -59,6 +67,7 @@ export async function PATCH(req: NextRequest) {
         const updatedProvider = await updateProviderVerification(id, isVerified);
         return NextResponse.json(updatedProvider);
     } catch (error) {
+        console.error("Error in PATCH /api/providers:", error);
         return NextResponse.json({ message: "An error occurred" }, { status: 500 });
     }
 }

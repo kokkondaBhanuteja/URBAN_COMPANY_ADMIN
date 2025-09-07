@@ -26,7 +26,10 @@ export interface IBooking extends Document {
   startedAt?: Date;
   completedAt?: Date;
 
-  totalPrice: number;
+  pricing: {
+    basePrice: number;
+    finalAmount: number;
+  };
   specialInstructions?: string;
 
   discountId?: Types.ObjectId;
@@ -67,7 +70,10 @@ const bookingSchema = new Schema<IBooking>(
     startedAt: { type: Date },
     completedAt: { type: Date },
 
-    totalPrice: { type: Number, required: true },
+    pricing: {
+      basePrice: { type: Number, required: true },
+      finalAmount: { type: Number, required: true },
+    },
     specialInstructions: { type: String },
 
     discountId: { type: Schema.Types.ObjectId, ref: "Discount" },

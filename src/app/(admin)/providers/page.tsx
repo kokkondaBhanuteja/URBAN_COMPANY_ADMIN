@@ -62,7 +62,7 @@ interface IProviderData {
 interface IProviderStats {
   total: number;
   verified: number;
-  unverified: number;
+  rejected: number;
 }
 
 async function fetchProviders(
@@ -81,6 +81,19 @@ async function fetchProviders(
   });
   if (!res.ok) {
     throw new Error("Failed to fetch providers");
+  }
+  return res.json();
+}
+
+async function fetchProviderStats(): Promise<IProviderStats> {
+  const token = localStorage.getItem("admin_token");
+  const url = new URL("/api/providers", window.location.origin);
+  url.searchParams.append("stats", "true");
+  const res = await fetch(url.toString(), {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) {
+    throw new Error("Failed to fetch provider stats");
   }
   return res.json();
 }
@@ -144,19 +157,21 @@ export default function ProvidersPage() {
     keepPreviousData: true,
   });
 
-  const stats: IProviderStats | undefined = data
-    ? {
-        total: data.totalProviders,
-        verified: data.providers.filter((p) => p.isVerified).length,
-        unverified: data.providers.filter((p) => !p.isVerified).length,
-      }
-    : undefined;
+  const { data: stats, isLoading: statsLoading } = useQuery<IProviderStats>({
+    queryKey: ["providerStats"],
+    queryFn: fetchProviderStats,
+  });
+
+  const { providers, totalProviders } = data || { providers: [], totalProviders: 0 };
 
   const mutation = useMutation({
     mutationFn: updateProviderVerification,
     onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: ["providers", currentPage, activeSearch],
+        queryKey: ["providers"],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["providerStats"],
       });
     },
   });
@@ -165,16 +180,14 @@ export default function ProvidersPage() {
     mutation.mutate({ providerId, isVerified });
   };
 
-  const totalPages = data
-    ? Math.ceil(data.totalProviders / PROVIDERS_PER_PAGE)
-    : 0;
+  const totalPages = Math.ceil(totalProviders / PROVIDERS_PER_PAGE);
 
   const handleSearch = () => {
     setCurrentPage(1);
     setActiveSearch(searchInput);
   };
 
-  if (isLoading)
+  if (isLoading || statsLoading)
     return (
       <div className="flex items-center justify-center h-[calc(100vh-8rem)]">
         <Loader />
@@ -202,7 +215,7 @@ export default function ProvidersPage() {
         />
         <StatCard
           title="Unverified Providers"
-          value={stats?.unverified ?? 0}
+          value={stats?.rejected ?? 0}
           icon={UserX}
         />
       </div>
@@ -240,7 +253,7 @@ export default function ProvidersPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {data?.providers?.map((provider) => {
+              {providers.map((provider) => {
                 const availability = getMockAvailability(provider._id);
                 const statusText = provider.isVerified
                   ? "Verified"

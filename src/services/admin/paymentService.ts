@@ -18,12 +18,14 @@ export const getAllPayments = async (): Promise<{
 export const getProviderPayments = async () => {
   const providers = await Provider.find().populate("userId").lean();
   const providerPayments = [];
+  let totalRevenue = 0;
 
   for (const provider of providers) {
     const payouts = await ProviderPayout.find({
       providerId: provider._id,
     }).lean();
     const totalEarnings = payouts.reduce((acc, p) => acc + p.netPayout, 0);
+    totalRevenue += totalEarnings;
     const pendingPayouts = payouts
       .filter((p) => p.status === "pending")
       .reduce((acc, p) => acc + p.netPayout, 0);
