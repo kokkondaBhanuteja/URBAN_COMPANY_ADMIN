@@ -9,7 +9,12 @@ export const getAllDiscounts = async (
   totalDiscounts: number;
 }> => {
   const skip = (page - 1) * limit;
-  const discounts = await Discount.find({}).skip(skip).limit(limit).lean();
+  const discounts = await Discount.find({})
+    .populate("category", "categoryName")
+    .populate("service", "serviceName")
+    .skip(skip)
+    .limit(limit)
+    .lean();
   const totalDiscounts = await Discount.countDocuments();
   return { discounts, totalDiscounts };
 };
@@ -35,19 +40,10 @@ export const deleteDiscount = async (id: string): Promise<void> => {
 
 export const searchDiscounts = async (
   query: string,
-  page: number,
-  limit: number
-): Promise<{
-  discounts: HydratedDocument<IDiscount>[];
-  totalDiscounts: number;
-}> => {
+): Promise<HydratedDocument<IDiscount>[]> => {
   const searchQuery = new RegExp(query, "i");
-  const findQuery = { $or: [{ promoCode: { $regex: searchQuery } }] };
-  const skip = (page - 1) * limit;
-  const discounts = await Discount.find(findQuery)
-    .skip(skip)
-    .limit(limit)
+  return await Discount.find({ promoCode: { $regex: searchQuery } })
+    .populate("category", "categoryName")
+    .populate("service", "serviceName")
     .lean();
-  const totalDiscounts = await Discount.countDocuments(findQuery);
-  return { discounts, totalDiscounts };
 };

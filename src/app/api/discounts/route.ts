@@ -18,12 +18,14 @@ export async function GET(req: NextRequest) {
     const searchQuery = searchParams.get("search");
     const page = parseInt(searchParams.get("page") || "1", 10);
     const limit = parseInt(searchParams.get("limit") || "10", 10);
+
     if (searchQuery) {
       const discounts = await searchDiscounts(searchQuery);
-      return NextResponse.json(discounts);
+      return NextResponse.json({ discounts, totalDiscounts: discounts.length });
     }
-    const discounts = await getAllDiscounts(page, limit);
-    return NextResponse.json(discounts);
+
+    const { discounts, totalDiscounts } = await getAllDiscounts(page, limit);
+    return NextResponse.json({ discounts, totalDiscounts });
   } catch (error) {
     return NextResponse.json(
       { error: "Failed to fetch discounts" },
@@ -38,13 +40,32 @@ export async function POST(request: NextRequest) {
   if (adminAuthResponse.status !== 200) return adminAuthResponse;
   try {
     const body = await request.json();
+    console.log(body);
 
-    const newDiscount = await addDiscount(body);
+    const { discountType, category, service, ...rest } = body;
+    let payload: any = { ...rest, discountType };
+
+    if (discountType === 'Category Specific') {
+      if (!category) {
+        return NextResponse.json({ error: "Category ID is required for Category Specific discount" }, { status: 400 });
+      }
+      payload.category = category;
+    } else if (discountType === 'Service Specific') {
+      if (!category || !service) {
+        return NextResponse.json({ error: "Category and Service IDs are required for Service Specific discount" }, { status: 400 });
+      }
+      payload.category = category;
+      payload.service = service;
+    }
+    // For 'Global' type, the category and service fields are correctly omitted from the payload
+
+    const newDiscount = await addDiscount(payload);
 
     return NextResponse.json(newDiscount, { status: 201 });
   } catch (error) {
+    console.error("Failed to create discount:", error);
     return NextResponse.json(
-      { error: "Failed to create discount" },
+      { error: "Failed to create discount. " + error.message },
       { status: 500 }
     );
   }
@@ -56,7 +77,7 @@ export async function PATCH(request: NextRequest) {
   if (adminAuthResponse.status !== 200) return adminAuthResponse;
   try {
     const body = await request.json();
-    const { _id, ...updates } = body;
+    const { _id, ...rest } = body;
 
     if (!_id) {
       return NextResponse.json(
@@ -64,12 +85,24 @@ export async function PATCH(request: NextRequest) {
         { status: 400 }
       );
     }
-
+    
+    // Construct the payload to prevent Mongoose CastError on empty strings
+    let updates: any = {};
+    for (const key in rest) {
+        // Exclude empty category and service IDs for Global discounts
+        if (rest.discountType === 'Global' && (key === 'category' || key === 'service')) {
+            updates[key] = null; // Explicitly set to null to clear the field in the database
+        } else if (rest[key] !== "") {
+            updates[key] = rest[key];
+        }
+    }
+    
     const updated = await updateDiscount(_id, updates);
     return NextResponse.json(updated);
   } catch (error) {
+    console.error("Failed to update discount:", error);
     return NextResponse.json(
-      { error: "Failed to update discount" },
+      { error: "Failed to update discount. " + error.message },
       { status: 500 }
     );
   }
