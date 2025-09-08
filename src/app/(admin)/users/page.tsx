@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Trash2, Users } from 'lucide-react';
+import { Trash2, Users, FilterX } from 'lucide-react';
 import Loader from '@/components/shared/Loader';
 import ErrorMessage from '@/components/shared/ErrorMessage';
 import StatCard from '@/components/shared/StatCard';
@@ -84,6 +84,13 @@ export default function ConsumersPage() {
         setActiveFilters({ search: searchInput, date: dateInput });
     };
 
+    const handleClearFilters = () => {
+        setSearchInput('');
+        setDateInput('');
+        setActiveFilters({ search: '', date: '' });
+        setCurrentPage(1);
+    };
+
     if (isLoading) return <div className="flex items-center justify-center h-[calc(100vh-8rem)]"><Loader /></div>;
     if (isError) return <div className="flex items-center justify-center h-[calc(100vh-8rem)]"><ErrorMessage message="Failed to load consumers." retry={refetch} /></div>;
 
@@ -109,6 +116,7 @@ export default function ConsumersPage() {
                     className="max-w-sm"
                 />
                 <Button onClick={handleSearchAndFilter}>Search / Filter</Button>
+                <Button variant="outline" onClick={handleClearFilters}><FilterX className="h-4 w-4 mr-2" />Clear</Button>
             </div>
         </CardHeader>
         <CardContent>
@@ -123,19 +131,27 @@ export default function ConsumersPage() {
                 </TableRow>
             </TableHeader>
             <TableBody>
-                {paginatedConsumers.map((user) => (
-                <TableRow key={user._id}>
-                    <TableCell>{user.userName}</TableCell>
-                    <TableCell>{user.email}</TableCell>
-                    <TableCell>{user.mobileNumber}</TableCell>
-                    <TableCell>{new Date(user.createdAt).toLocaleDateString()}</TableCell>
-                    <TableCell className="text-right">
-                    <Button variant="ghost" size="icon" onClick={() => handleDelete(user._id)} disabled={mutation.isPending}>
-                        <Trash2 className="h-4 w-4 text-red-500" />
-                    </Button>
+                {paginatedConsumers && paginatedConsumers.length > 0 ? (
+                  paginatedConsumers.map((user) => (
+                    <TableRow key={user._id}>
+                        <TableCell>{user.userName}</TableCell>
+                        <TableCell>{user.email}</TableCell>
+                        <TableCell>{user.mobileNumber}</TableCell>
+                        <TableCell>{new Date(user.createdAt).toLocaleDateString()}</TableCell>
+                        <TableCell className="text-right">
+                        <Button variant="ghost" size="icon" onClick={() => handleDelete(user._id)} disabled={mutation.isPending}>
+                            <Trash2 className="h-4 w-4 text-red-500" />
+                        </Button>
+                        </TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center">
+                      No consumers found.
                     </TableCell>
-                </TableRow>
-                ))}
+                  </TableRow>
+                )}
             </TableBody>
             </Table>
              {totalPages > 1 && (

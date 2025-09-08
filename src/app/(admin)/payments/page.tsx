@@ -5,7 +5,7 @@ import { useState } from 'react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import StatCard from '@/components/shared/StatCard';
-import { DollarSign, CheckCircle2, XCircle, Clock } from 'lucide-react';
+import { DollarSign, CheckCircle2, XCircle, Clock, FilterX } from 'lucide-react';
 import Loader from '@/components/shared/Loader';
 import ErrorMessage from '@/components/shared/ErrorMessage';
 import { Input } from "@/components/ui/input";
@@ -117,6 +117,16 @@ export default function PaymentsPage() {
         setActiveDate(dateFilter);
     };
 
+    const handleClearFilters = () => {
+        setCurrentPage(1);
+        setSearchInput('');
+        setStatusFilter('all');
+        setDateFilter('');
+        setActiveSearch('');
+        setActiveStatus('all');
+        setActiveDate('');
+    };
+
     const totalPages = data?.totalPayments ? Math.ceil(data.totalPayments / PAYMENTS_PER_PAGE) : 0;
 
     if (isLoading || statsLoading) return (
@@ -167,6 +177,7 @@ export default function PaymentsPage() {
                     onChange={(e) => setDateFilter(e.target.value)}
                 />
                 <Button onClick={handleSearchAndFilter}>Search & Filter</Button>
+                <Button onClick={handleClearFilters} variant="outline"><FilterX className="h-4 w-4 mr-2" />Clear</Button>
             </div>
           </CardHeader>
           <CardContent>
@@ -182,20 +193,28 @@ export default function PaymentsPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {data?.payments.map((payment) => (
-                  <TableRow key={payment._id}>
-                    <TableCell>{payment.bookingId ?? 'N/A'}</TableCell>
-                    <TableCell>{payment.providerName ?? 'N/A'}</TableCell>
-                    <TableCell>${payment.amount.toFixed(2)}</TableCell>
-                    <TableCell>
-                         <Badge className={getStatusBadgeVariant(payment.paymentStatus)}>
-                            {payment.paymentStatus}
-                        </Badge>
+                {data?.payments && data.payments.length > 0 ? (
+                  data.payments.map((payment) => (
+                    <TableRow key={payment._id}>
+                      <TableCell>{payment.bookingId ?? 'N/A'}</TableCell>
+                      <TableCell>{payment.providerName ?? 'N/A'}</TableCell>
+                      <TableCell>${payment.amount.toFixed(2)}</TableCell>
+                      <TableCell>
+                           <Badge className={getStatusBadgeVariant(payment.paymentStatus)}>
+                              {payment.paymentStatus}
+                          </Badge>
+                      </TableCell>
+                      <TableCell>{payment.paymentMethod}</TableCell>
+                      <TableCell>{new Date(payment.createdAt).toLocaleDateString()}</TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center">
+                      No payments found.
                     </TableCell>
-                    <TableCell>{payment.paymentMethod}</TableCell>
-                    <TableCell>{new Date(payment.createdAt).toLocaleDateString()}</TableCell>
                   </TableRow>
-                ))}
+                )}
               </TableBody>
             </Table>
              {totalPages > 1 && (

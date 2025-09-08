@@ -16,13 +16,24 @@ export async function GET(req: NextRequest) {
     const statusFilter = searchParams.get('status');
     const startDate = searchParams.get('startDate');
     const endDate = searchParams.get('endDate');
+    const paymentStatusFilter = searchParams.get('paymentStatus');
+    const specialInstructionsSearch = searchParams.get('specialInstructions');
 
     if (getStats) {
         const stats = await getBookingStats();
         return NextResponse.json(stats);
     }
     
-    const { bookings, totalBookings } = await getAllBookings(page, limit, searchQuery, statusFilter, startDate, endDate);
+    const { bookings, totalBookings } = await getAllBookings(
+        page, 
+        limit, 
+        searchQuery, 
+        statusFilter, 
+        startDate, 
+        endDate,
+        paymentStatusFilter,
+        specialInstructionsSearch
+    );
     return NextResponse.json({ bookings, totalBookings });
   } catch (error) {
     return NextResponse.json(

@@ -162,36 +162,44 @@ export default function ProviderPaymentsPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {providerPayments?.map((payment) => (
-                <TableRow key={payment._id}>
-                   <TableCell>
-                      <Input
-                          type="checkbox"
-                          checked={selectedProviders.includes(payment._id)}
-                          onChange={() => handleSelectProvider(payment._id)}
-                          className="h-4 w-4"
-                      />
+              {providerPayments && providerPayments.length > 0 ? (
+                providerPayments.map((payment) => (
+                  <TableRow key={payment._id}>
+                     <TableCell>
+                        <Input
+                            type="checkbox"
+                            checked={selectedProviders.includes(payment._id)}
+                            onChange={() => handleSelectProvider(payment._id)}
+                            className="h-4 w-4"
+                        />
+                    </TableCell>
+                    <TableCell>
+                        <div className="font-medium">{payment.provider.userName}</div>
+                        <div className="text-sm text-muted-foreground">{payment.provider.email}</div>
+                    </TableCell>
+                    <TableCell>
+                        <Badge variant="secondary" className="text-base">
+                            <DollarSign className="h-4 w-4 mr-1" />
+                            {payment.totalEarnings.toFixed(2)}
+                        </Badge>
+                    </TableCell>
+                    <TableCell>
+                         <Badge variant="outline" className="text-base text-red-600">
+                            <DollarSign className="h-4 w-4 mr-1" />
+                            {payment.pendingPayouts.toFixed(2)}
+                        </Badge>
+                    </TableCell>
+                    <TableCell>{payment.lastPayoutDate ? new Date(payment.lastPayoutDate).toLocaleDateString() : 'N/A'}</TableCell>
+                    <TableCell>{payment.payoutSchedule}</TableCell>
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center">
+                    No provider payments found.
                   </TableCell>
-                  <TableCell>
-                      <div className="font-medium">{payment.provider.userName}</div>
-                      <div className="text-sm text-muted-foreground">{payment.provider.email}</div>
-                  </TableCell>
-                  <TableCell>
-                      <Badge variant="secondary" className="text-base">
-                          <DollarSign className="h-4 w-4 mr-1" />
-                          {payment.totalEarnings.toFixed(2)}
-                      </Badge>
-                  </TableCell>
-                  <TableCell>
-                       <Badge variant="outline" className="text-base text-red-600">
-                          <DollarSign className="h-4 w-4 mr-1" />
-                          {payment.pendingPayouts.toFixed(2)}
-                      </Badge>
-                  </TableCell>
-                  <TableCell>{payment.lastPayoutDate ? new Date(payment.lastPayoutDate).toLocaleDateString() : 'N/A'}</TableCell>
-                  <TableCell>{payment.payoutSchedule}</TableCell>
                 </TableRow>
-              ))}
+              )}
             </TableBody>
           </Table>
         </CardContent>

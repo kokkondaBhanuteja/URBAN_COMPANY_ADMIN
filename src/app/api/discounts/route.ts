@@ -16,11 +16,12 @@ export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const searchQuery = searchParams.get("search");
+    const status = searchParams.get("status");
     const page = parseInt(searchParams.get("page") || "1", 10);
     const limit = parseInt(searchParams.get("limit") || "10", 10);
 
-    if (searchQuery) {
-      const discounts = await searchDiscounts(searchQuery);
+    if (searchQuery || status) {
+      const discounts = await searchDiscounts(searchQuery, status);
       return NextResponse.json({ discounts, totalDiscounts: discounts.length });
     }
 

@@ -6,15 +6,16 @@ import Service from "@/database/serviceModel";
 export const getAllProviders = async (
   page: number,
   limit: number,
-  categoryId?: string,
-  searchQuery?: string
+  searchQuery?: string,
+  isVerified?: string,
+  rating?: string
 ): Promise<{
   providers: HydratedDocument<IProvider>[];
   totalProviders: number;
 }> => {
   const skip = (page - 1) * limit;
 
-  let matchQuery = {};
+  let matchQuery: any = {};
 
   if (searchQuery) {
     const searchRegex = new RegExp(searchQuery, "i");
@@ -25,7 +26,14 @@ export const getAllProviders = async (
       ],
     };
   }
+  if (isVerified) {
+    matchQuery.isVerified = isVerified === "true";
+  }
 
+  if (rating) {
+    matchQuery.averageRating = { $gte: parseInt(rating, 10) };
+  }
+  
   const pipeline = [
     {
       $lookup: {
@@ -46,25 +54,6 @@ export const getAllProviders = async (
     },
     { $match: matchQuery },
     {
-      $addFields: {
-        firstService: { $arrayElemAt: ["$serviceDetails", 0] }
-      }
-    },
-    {
-      $lookup: {
-        from: "servicecategories",
-        localField: "firstService.category",
-        foreignField: "_id",
-        as: "categoryDetails"
-      }
-    },
-    {
-      $unwind: { path: "$categoryDetails", preserveNullAndEmptyArrays: true }
-    },
-    {
-      $match: categoryId ? { "categoryDetails._id": new Object(categoryId) } : {}
-    },
-    {
       $facet: {
         providers: [
           { $skip: skip },
@@ -76,22 +65,22 @@ export const getAllProviders = async (
               servicesOffered: "$serviceDetails",
               isVerified: 1,
               averageRating: 1,
+              bio: 1,
+              availability: 1,
             },
           },
         ],
-        totalCount: [
-          { $count: "count" }
-        ]
-      }
-    }
+        totalCount: [{ $count: "count" }],
+      },
+    },
   ];
 
   const result = await Provider.aggregate(pipeline);
   const providers = result[0].providers;
-  const totalProviders = result[0].totalCount.length > 0 ? result[0].totalCount[0].count : 0;
+  const totalProviders =
+    result[0].totalCount.length > 0 ? result[0].totalCount[0].count : 0;
   return { providers, totalProviders };
 };
-
 
 export const getProviderById = async (
   id: string
@@ -117,7 +106,11 @@ export const updateProviderVerification = async (
   id: string,
   isVerified: boolean
 ): Promise<HydratedDocument<IProvider> | null> => {
-  return Provider.findByIdAndUpdate(id, { isVerified: isVerified }, { new: true });
+  return Provider.findByIdAndUpdate(
+    id,
+    { isVerified: isVerified },
+    { new: true }
+  );
 };
 
 export const getProviderStats = async () => {

@@ -2,7 +2,7 @@
 
 import type React from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -173,6 +173,7 @@ async function removeService(serviceId: string) {
 export default function ServicesPage() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const serviceFormRef = useRef<HTMLDivElement>(null);
 
   const [editingCategory, setEditingCategory] = useState<string | null>(null);
   const [editingService, setEditingService] = useState<string | null>(null);
@@ -325,6 +326,7 @@ export default function ServicesPage() {
     }
   };
   const handleEditService = (service: IService) => {
+    setShowAddServiceForCatId(null); // Clear add mode
     setEditingService(service._id);
     setServiceForm({
       serviceName: service.serviceName,
@@ -332,6 +334,9 @@ export default function ServicesPage() {
       description: service.description || "",
       category: service.category._id,
     });
+    setTimeout(() => {
+        serviceFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 100);
   };
 
   const totalPages = categoriesWithServices
@@ -440,172 +445,192 @@ export default function ServicesPage() {
         </CardHeader>
         <CardContent>
           <Accordion type="single" collapsible className="w-full">
-            {categoriesWithServices
-              ?.slice(
-                (currentPage - 1) * ITEMS_PER_PAGE,
-                currentPage * ITEMS_PER_PAGE
-              )
-              .map((category) => (
-                <AccordionItem value={category._id} key={category._id}>
-                  <AccordionTrigger className="text-lg font-semibold">
-                    {category.categoryName}
-                  </AccordionTrigger>
-                  <AccordionContent className="space-y-4">
-                    <div className="flex justify-end gap-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleEditCategory(category)}
-                      >
-                        {" "}
-                        <Edit className="h-4 w-4 mr-2" /> Edit Category
-                      </Button>
-                      <Button
-                        size="sm"
-                        onClick={() => {
-                          setShowAddServiceForCatId(category._id);
-                          setServiceForm({
-                            ...serviceForm,
-                            category: category._id,
-                          });
-                        }}
-                      >
-                        {" "}
-                        <Plus className="h-4 w-4 mr-2" /> Add Service
-                      </Button>
-                    </div>
-
-                    {showAddServiceForCatId === category._id ||
-                    (editingService &&
-                      serviceForm.category === category._id) ? (
-                      <Card className="my-4">
-                        <CardHeader>
-                          <CardTitle>
-                            {editingService ? "Edit Service" : "Add Service"}
-                          </CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                          <form
-                            onSubmit={
-                              editingService
-                                ? handleUpdateService
-                                : handleAddService
-                            }
-                            className="space-y-4"
+            {categoriesWithServices && categoriesWithServices.length > 0 ? (
+              categoriesWithServices
+                .slice(
+                  (currentPage - 1) * ITEMS_PER_PAGE,
+                  currentPage * ITEMS_PER_PAGE
+                )
+                .map((category) => {
+                  const isEditingServiceInThisCategory = editingService && category.services?.some(s => s._id === editingService);
+                  return (
+                    <AccordionItem value={category._id} key={category._id}>
+                      <AccordionTrigger className="text-lg font-semibold">
+                        {category.categoryName}
+                      </AccordionTrigger>
+                      <AccordionContent className="space-y-4">
+                        <div className="flex justify-end gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleEditCategory(category)}
                           >
-                            {/* Form fields for service */}
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                              <div className="space-y-2">
-                                <Label htmlFor="serviceName">Service Name</Label>
-                                <Input
-                                  id="serviceName"
-                                  value={serviceForm.serviceName}
-                                  onChange={(e) =>
-                                    setServiceForm({
-                                      ...serviceForm,
-                                      serviceName: e.target.value,
-                                    })
-                                  }
-                                  required
-                                />
-                              </div>
-                              <div className="space-y-2">
-                                <Label htmlFor="basePrice">Base Price</Label>
-                                <Input
-                                  id="basePrice"
-                                  type="number"
-                                  value={serviceForm.basePrice}
-                                  onChange={(e) =>
-                                    setServiceForm({
-                                      ...serviceForm,
-                                      basePrice: e.target.value,
-                                    })
-                                  }
-                                  required
-                                />
-                              </div>
-                            </div>
-                            <div className="space-y-2">
-                              <Label htmlFor="description">Description</Label>
-                              <Textarea
-                                id="description"
-                                value={serviceForm.description}
-                                onChange={(e) =>
-                                  setServiceForm({
-                                    ...serviceForm,
-                                    description: e.target.value,
-                                  })
-                                }
-                              />
-                            </div>
-                            <div className="flex gap-2">
-                              <Button type="submit">
-                                {editingService ? "Update" : "Add"}
-                              </Button>
-                              <Button
-                                variant="outline"
-                                onClick={() => {
-                                  setEditingService(null);
-                                  setShowAddServiceForCatId(null);
-                                  resetServiceForm();
-                                }}
-                              >
-                                Cancel
-                              </Button>
-                            </div>
-                          </form>
-                        </CardContent>
-                      </Card>
-                    ) : null}
+                            <Edit className="h-4 w-4 mr-2" /> Edit Category
+                          </Button>
+                          <Button
+                            size="sm"
+                            onClick={() => {
+                              setEditingService(null);
+                              resetServiceForm();
+                              setShowAddServiceForCatId(category._id);
+                              setServiceForm({
+                                serviceName: "",
+                                basePrice: "",
+                                description: "",
+                                category: category._id,
+                              });
+                              setTimeout(() => {
+                                  serviceFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                              }, 100);
+                            }}
+                          >
+                            <Plus className="h-4 w-4 mr-2" /> Add Service
+                          </Button>
+                        </div>
 
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Service</TableHead>
-                          <TableHead>Price</TableHead>
-                          <TableHead className="text-right">Actions</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {category.services?.map((service) => (
-                          <TableRow key={service._id}>
-                            <TableCell className="font-medium">
-                              {service.serviceName}
-                            </TableCell>
-                            <TableCell>
-                              ${service.basePrice.toFixed(2)}
-                            </TableCell>
-                            <TableCell className="text-right">
-                              <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                  <Button variant="ghost" size="icon">
-                                    <MoreHorizontal className="h-4 w-4" />
-                                  </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end">
-                                  <DropdownMenuItem
-                                    onClick={() => handleEditService(service)}
-                                  >
-                                    <Edit className="h-4 w-4 mr-2" /> Edit
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem
-                                    onClick={() =>
-                                      removeServiceMutation.mutate(service._id)
+                        {showAddServiceForCatId === category._id || isEditingServiceInThisCategory ? (
+                          <Card ref={serviceFormRef} className="my-4">
+                            <CardHeader>
+                              <CardTitle>
+                                {editingService ? "Edit Service" : "Add Service"}
+                              </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                              <form
+                                onSubmit={
+                                  editingService
+                                    ? handleUpdateService
+                                    : handleAddService
+                                }
+                                className="space-y-4"
+                              >
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                  <div className="space-y-2">
+                                    <Label htmlFor="serviceName">Service Name</Label>
+                                    <Input
+                                      id="serviceName"
+                                      value={serviceForm.serviceName}
+                                      onChange={(e) =>
+                                        setServiceForm({
+                                          ...serviceForm,
+                                          serviceName: e.target.value,
+                                        })
+                                      }
+                                      required
+                                    />
+                                  </div>
+                                  <div className="space-y-2">
+                                    <Label htmlFor="basePrice">Base Price</Label>
+                                    <Input
+                                      id="basePrice"
+                                      type="number"
+                                      value={serviceForm.basePrice}
+                                      onChange={(e) =>
+                                        setServiceForm({
+                                          ...serviceForm,
+                                          basePrice: e.target.value,
+                                        })
+                                      }
+                                      required
+                                    />
+                                  </div>
+                                </div>
+                                <div className="space-y-2">
+                                  <Label htmlFor="description">Description</Label>
+                                  <Textarea
+                                    id="description"
+                                    value={serviceForm.description}
+                                    onChange={(e) =>
+                                      setServiceForm({
+                                        ...serviceForm,
+                                        description: e.target.value,
+                                      })
                                     }
-                                    className="text-red-600 focus:text-red-500"
+                                  />
+                                </div>
+                                <div className="flex gap-2">
+                                  <Button type="submit">
+                                    {editingService ? "Update" : "Add"}
+                                  </Button>
+                                  <Button
+                                    variant="outline"
+                                    type="button"
+                                    onClick={() => {
+                                      setEditingService(null);
+                                      setShowAddServiceForCatId(null);
+                                      resetServiceForm();
+                                    }}
                                   >
-                                    <Trash2 className="h-4 w-4 mr-2" /> Delete
-                                  </DropdownMenuItem>
-                                </DropdownMenuContent>
-                              </DropdownMenu>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </AccordionContent>
-                </AccordionItem>
-              ))}
+                                    Cancel
+                                  </Button>
+                                </div>
+                              </form>
+                            </CardContent>
+                          </Card>
+                        ) : null}
+
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Service</TableHead>
+                              <TableHead>Price</TableHead>
+                              <TableHead className="text-right">Actions</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {category.services && category.services.length > 0 ? (
+                              category.services.map((service) => (
+                                <TableRow key={service._id}>
+                                  <TableCell className="font-medium">
+                                    {service.serviceName}
+                                  </TableCell>
+                                  <TableCell>
+                                    ${service.basePrice.toFixed(2)}
+                                  </TableCell>
+                                  <TableCell className="text-right">
+                                    <DropdownMenu>
+                                      <DropdownMenuTrigger asChild>
+                                        <Button variant="ghost" size="icon">
+                                          <MoreHorizontal className="h-4 w-4" />
+                                        </Button>
+                                      </DropdownMenuTrigger>
+                                      <DropdownMenuContent align="end">
+                                        <DropdownMenuItem
+                                          onClick={() => handleEditService(service)}
+                                        >
+                                          <Edit className="h-4 w-4 mr-2" /> Edit
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem
+                                          onClick={() =>
+                                            removeServiceMutation.mutate(service._id)
+                                          }
+                                          className="text-red-600 focus:text-red-500"
+                                        >
+                                          <Trash2 className="h-4 w-4 mr-2" /> Delete
+                                        </DropdownMenuItem>
+                                      </DropdownMenuContent>
+                                    </DropdownMenu>
+                                  </TableCell>
+                                </TableRow>
+                              ))
+                            ) : (
+                              <TableRow>
+                                <TableCell colSpan={3} className="text-center">
+                                  No services found in this category.
+                                </TableCell>
+                              </TableRow>
+                            )}
+                          </TableBody>
+                        </Table>
+                      </AccordionContent>
+                    </AccordionItem>
+                  )
+                })
+            ) : (
+              <div className="text-center text-gray-500 py-8">
+                No categories found.
+              </div>
+            )}
           </Accordion>
           {totalPages > 1 && (
             <div className="flex items-center justify-end space-x-2 py-4">

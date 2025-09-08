@@ -37,7 +37,7 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import { Trash2, Edit, MoreHorizontal, Calendar, X, ChevronDown } from "lucide-react";
+import { Trash2, Edit, MoreHorizontal, Calendar, X, ChevronDown, FilterX } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 // Simple, self-contained components to replace external imports
@@ -86,13 +86,16 @@ interface IDiscount {
 }
 
 // --- API Functions (unchanged) ---
-async function fetchDiscounts(page: number, search: string): Promise<{ discounts: IDiscount[], totalDiscounts: number }> {
+async function fetchDiscounts(page: number, search: string, status: string): Promise<{ discounts: IDiscount[], totalDiscounts: number }> {
   const token = localStorage.getItem('admin_token');
   const url = new URL('/api/discounts', window.location.origin);
   url.searchParams.append('page', page.toString());
   url.searchParams.append('limit', ITEMS_PER_PAGE.toString());
   if (search) {
     url.searchParams.append('search', search);
+  }
+  if (status && status !== 'all') {
+    url.searchParams.append('status', status);
   }
   const res = await fetch(url.toString(), {
     headers: { Authorization: `Bearer ${token}` },
@@ -161,7 +164,9 @@ export default function DiscountsPage() {
   const { toast } = useToast();
   const [currentPage, setCurrentPage] = useState(1);
   const [searchInput, setSearchInput] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
   const [activeSearch, setActiveSearch] = useState('');
+  const [activeStatus, setActiveStatus] = useState('all');
   const [editingDiscount, setEditingDiscount] = useState<IDiscount | null>(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [discountToDelete, setDiscountToDelete] = useState<string | null>(null);
@@ -180,13 +185,13 @@ export default function DiscountsPage() {
   });
   
   const [searchQuery, setSearchQuery] = useState('');
-  const [isSearchOpen, setIsSearchOpen] = useState(false); // **FIX 1: Renamed for clarity**
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [selection, setSelection] = useState<{ name: string; type: string } | null>(null);
   const searchContainerRef = useRef<HTMLDivElement>(null);
 
   const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ["discounts", currentPage, activeSearch],
-    queryFn: () => fetchDiscounts(currentPage, activeSearch),
+    queryKey: ["discounts", currentPage, activeSearch, activeStatus],
+    queryFn: () => fetchDiscounts(currentPage, activeSearch, activeStatus),
     keepPreviousData: true,
   });
 
@@ -223,7 +228,7 @@ export default function DiscountsPage() {
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (searchContainerRef.current && !searchContainerRef.current.contains(event.target as Node)) {
-        setIsSearchOpen(false); // **FIX 1: Use new state name**
+        setIsSearchOpen(false);
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
@@ -250,6 +255,15 @@ export default function DiscountsPage() {
   const handleSearch = () => {
     setCurrentPage(1);
     setActiveSearch(searchInput);
+    setActiveStatus(statusFilter);
+  };
+
+  const handleClearFilters = () => {
+    setSearchInput('');
+    setStatusFilter('all');
+    setActiveSearch('');
+    setActiveStatus('all');
+    setCurrentPage(1);
   };
 
   const resetForm = () => {
@@ -283,7 +297,7 @@ export default function DiscountsPage() {
   
   const handleSelection = (item: any) => {
     setSearchQuery('');
-    setIsSearchOpen(false); // **FIX 1: Use new state name**
+    setIsSearchOpen(false);
     if(item.type === 'Category Specific') {
         setFormState(prev => ({ ...prev, category: item.id, service: '' }));
         setSelection({ name: item.name, type: 'Category' });
@@ -366,7 +380,7 @@ export default function DiscountsPage() {
                     animate={{ opacity: 1, height: 'auto' }}
                     exit={{ opacity: 0, height: 0 }}
                     transition={{ duration: 0.3 }}
-                    className="space-y-2" // **FIX 2: Removed overflow-hidden**
+                    className="space-y-2"
                   >
                     <Label>Apply To</Label>
                     {selection ? (
@@ -388,8 +402,8 @@ export default function DiscountsPage() {
                             placeholder={`Search for a ${formState.discountType === 'Category Specific' ? 'category' : 'service'}...`}
                             value={searchQuery}
                             onChange={e => setSearchQuery(e.target.value)}
-                            onFocus={() => setIsSearchOpen(true)} // **FIX 3: Simplified focus handling**
-                            autoComplete="off" // **FIX 4: Added for better user experience**
+                            onFocus={() => setIsSearchOpen(true)}
+                            autoComplete="off"
                             className="pr-10"
                           />
                           <ChevronDown className={`absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 transition-transform duration-200 ${isSearchOpen ? 'rotate-180' : ''}`} />
@@ -504,7 +518,7 @@ export default function DiscountsPage() {
         <CardHeader>
           <CardTitle>Existing Discounts</CardTitle>
           <CardDescription>Manage all discount codes and their status.</CardDescription>
-          <div className="pt-4">
+          <div className="flex items-center gap-2 pt-4">
             <Input
               placeholder="Search by promo code..."
               value={searchInput}
@@ -512,6 +526,18 @@ export default function DiscountsPage() {
               onKeyDown={e => e.key === 'Enter' && handleSearch()}
               className="max-w-sm"
             />
+            <Select onValueChange={setStatusFilter} value={statusFilter}>
+                <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Filter by Status" />
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="all">All Statuses</SelectItem>
+                    <SelectItem value="true">Active</SelectItem>
+                    <SelectItem value="false">Inactive</SelectItem>
+                </SelectContent>
+            </Select>
+            <Button onClick={handleSearch}>Search & Filter</Button>
+            <Button variant="outline" onClick={handleClearFilters}><FilterX className="h-4 w-4 mr-2"/>Clear Filters</Button>
           </div>
         </CardHeader>
         <CardContent>

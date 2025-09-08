@@ -1,3 +1,5 @@
+// src/app/(admin)/bookings/page.tsx
+
 "use client";
 
 import { useQuery } from '@tanstack/react-query';
@@ -20,7 +22,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useEffect } from 'react';
 
 
 const BOOKINGS_PER_PAGE = 5;
@@ -30,13 +31,14 @@ interface IBooking {
     userId:{userName: string} ;
     providerId?: { userId: { userName: string } };
     serviceId: { serviceName: string };
-    status: string; // Correct field name
-    scheduledDateTime: string; // Correct field name
+    status: string;
+    scheduledDateTime: string;
     startedAt?: string;
     completedAt?: string;
     serviceAddress: {
         addressLine1: string;
         city: string;
+        pincode: string;
     };
     pricing: { basePrice: number, finalAmount: number };
     paymentDetails: { paymentStatus: string };
@@ -56,7 +58,7 @@ interface IBookingStats {
     cancelled: number;
 }
 
-async function fetchBookings(page: number, search: string, status: string, startDate: string, endDate: string, minPrice: string, maxPrice: string): Promise<IBookingsData> {
+async function fetchBookings(page: number, search: string, status: string, startDate: string, endDate: string, paymentStatus: string, specialInstructions: string): Promise<IBookingsData> {
     const token = localStorage.getItem('admin_token');
     const url = new URL('/api/bookings', window.location.origin);
     url.searchParams.append('page', page.toString());
@@ -65,8 +67,8 @@ async function fetchBookings(page: number, search: string, status: string, start
     if (status) url.searchParams.append('status', status);
     if (startDate) url.searchParams.append('startDate', startDate);
     if (endDate) url.searchParams.append('endDate', endDate);
-    if (minPrice) url.searchParams.append('minPrice', minPrice);
-    if (maxPrice) url.searchParams.append('maxPrice', maxPrice);
+    if (paymentStatus) url.searchParams.append('paymentStatus', paymentStatus);
+    if (specialInstructions) url.searchParams.append('specialInstructions', specialInstructions);
 
     const res = await fetch(url.toString(), {
         headers: { Authorization: `Bearer ${token}` },
@@ -101,36 +103,48 @@ const getStatusBadgeVariant = (status: string) => {
     case 'confirmed':
       return 'bg-blue-100 text-blue-800';
     case 'in_progress':
+      return 'bg-yellow-100 text-yellow-800';
+    case 'successful':
+        return 'bg-green-100 text-green-800';
+    case 'pending':
         return 'bg-yellow-100 text-yellow-800';
+    case 'failed':
+        return 'bg-red-100 text-red-800';
     default:
       return 'bg-gray-100 text-gray-800';
   }
 };
 
-const getQuarterStartAndEnd = (date: Date) => {
-  const quarter = Math.floor(date.getMonth() / 3);
-  const startMonth = quarter * 3;
-  const startDate = new Date(date.getFullYear(), startMonth, 1);
-  const endDate = new Date(startDate.getFullYear(), startDate.getMonth() + 3, 0);
-  return { startDate, endDate };
+const getPaymentStatusText = (status: string) => {
+  switch (status) {
+      case 'successful':
+          return 'Successful';
+      case 'pending':
+          return 'Pending';
+      case 'failed':
+          return 'Failed';
+      default:
+          return 'N/A';
+  }
 };
-
 
 export default function BookingsPage() {
     const [currentPage, setCurrentPage] = useState(1);
     const [searchInput, setSearchInput] = useState('');
     const [statusFilter, setStatusFilter] = useState('all');
     const [dateRange, setDateRange] = useState({startDate: '', endDate: ''});
-    const [priceRange, setPriceRange] = useState({ minPrice: '', maxPrice: '' });
+    const [paymentStatusFilter, setPaymentStatusFilter] = useState('all');
+    const [specialInstructionsSearch, setSpecialInstructionsSearch] = useState('');
+    
     const [activeSearch, setActiveSearch] = useState('');
     const [activeStatus, setActiveStatus] = useState('all');
     const [activeDateRange, setActiveDateRange] = useState({startDate: '', endDate: ''});
-    const [activePriceRange, setActivePriceRange] = useState({minPrice: '', maxPrice: ''});
-
+    const [activePaymentStatus, setActivePaymentStatus] = useState('all');
+    const [activeSpecialInstructions, setActiveSpecialInstructions] = useState('');
 
     const { data, isLoading, isError, refetch } = useQuery<IBookingsData>({
-        queryKey: ['bookings', currentPage, activeSearch, activeStatus, activeDateRange, activePriceRange],
-        queryFn: () => fetchBookings(currentPage, activeSearch, activeStatus === 'all' ? '' : activeStatus, activeDateRange.startDate, activeDateRange.endDate, activePriceRange.minPrice, activePriceRange.maxPrice),
+        queryKey: ['bookings', currentPage, activeSearch, activeStatus, activeDateRange, activePaymentStatus, activeSpecialInstructions],
+        queryFn: () => fetchBookings(currentPage, activeSearch, activeStatus === 'all' ? '' : activeStatus, activeDateRange.startDate, activeDateRange.endDate, activePaymentStatus === 'all' ? '' : activePaymentStatus, activeSpecialInstructions),
         keepPreviousData: true,
     });
 
@@ -146,57 +160,23 @@ export default function BookingsPage() {
         setActiveSearch(searchInput);
         setActiveStatus(statusFilter);
         setActiveDateRange(dateRange);
-        setActivePriceRange(priceRange);
+        setActivePaymentStatus(paymentStatusFilter);
+        setActiveSpecialInstructions(specialInstructionsSearch);
     };
 
     const handleClearFilters = () => {
         setSearchInput('');
         setStatusFilter('all');
         setDateRange({ startDate: '', endDate: '' });
-        setPriceRange({ minPrice: '', maxPrice: '' });
+        setPaymentStatusFilter('all');
+        setSpecialInstructionsSearch('');
         setCurrentPage(1);
         setActiveSearch('');
         setActiveStatus('all');
         setActiveDateRange({ startDate: '', endDate: '' });
-        setActivePriceRange({minPrice: '', maxPrice: ''});
+        setActivePaymentStatus('all');
+        setActiveSpecialInstructions('');
     };
-
-    const handleDatePreset = (preset: 'week' | 'month' | 'quarter') => {
-        const now = new Date();
-        let startDate: Date;
-        let endDate: Date;
-
-        switch (preset) {
-            case 'week':
-                startDate = new Date(now.setDate(now.getDate() - now.getDay()));
-                endDate = new Date(now.setDate(now.getDate() - now.getDay() + 6));
-                break;
-            case 'month':
-                startDate = new Date(now.getFullYear(), now.getMonth(), 1);
-                endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-                break;
-            case 'quarter':
-                const quarterDates = getQuarterStartAndEnd(now);
-                startDate = quarterDates.startDate;
-                endDate = quarterDates.endDate;
-                break;
-            default:
-                startDate = new Date();
-                endDate = new Date();
-        }
-
-        setDateRange({ 
-            startDate: startDate.toISOString().split('T')[0],
-            endDate: endDate.toISOString().split('T')[0]
-        });
-        setCurrentPage(1);
-    };
-
-    useEffect(() => {
-        // This effect runs whenever dateRange changes to trigger a refetch
-        setActiveDateRange(dateRange);
-    }, [dateRange]);
-
 
     if (isLoading || statsLoading) return (
       <div className="flex items-center justify-center h-[calc(100vh-8rem)]">
@@ -219,18 +199,24 @@ export default function BookingsPage() {
         </div>
         <Card>
           <CardHeader>
-            <CardTitle>Bookings</CardTitle>
-            <CardDescription>View all bookings.</CardDescription>
-            <div className="flex items-center gap-2 pt-4 flex-wrap">
+            <CardTitle>Filter Bookings</CardTitle>
+          </CardHeader>
+          <CardContent>
+             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <Input
-                    placeholder="Search by customer, provider..."
+                    placeholder="Search by ID, customer, provider..."
                     value={searchInput}
                     onChange={(e) => setSearchInput(e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && handleFilter()}
-                    className="max-w-sm"
+                />
+                <Input
+                    placeholder="Search special instructions..."
+                    value={specialInstructionsSearch}
+                    onChange={(e) => setSpecialInstructionsSearch(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && handleFilter()}
                 />
                 <Select onValueChange={setStatusFilter} value={statusFilter}>
-                    <SelectTrigger className="w-[180px]">
+                    <SelectTrigger className="w-full">
                         <SelectValue placeholder="Filter by Status" />
                     </SelectTrigger>
                     <SelectContent>
@@ -242,82 +228,100 @@ export default function BookingsPage() {
                         <SelectItem value="completed">Completed</SelectItem>
                     </SelectContent>
                 </Select>
-                 <div className="flex items-center gap-2">
-                    <Input
-                        type="date"
-                        placeholder="Start Date"
-                        value={dateRange.startDate}
-                        onChange={(e) => setDateRange(prev => ({ ...prev, startDate: e.target.value }))}
-                        className="w-auto"
-                    />
-                    <Input
-                        type="date"
-                        placeholder="End Date"
-                        value={dateRange.endDate}
-                        onChange={(e) => setDateRange(prev => ({ ...prev, endDate: e.target.value }))}
-                        className="w-auto"
-                    />
+                <Select onValueChange={setPaymentStatusFilter} value={paymentStatusFilter}>
+                    <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Filter by Payment Status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="all">All Payment Statuses</SelectItem>
+                        <SelectItem value="successful">Successful</SelectItem>
+                        <SelectItem value="pending">Pending</SelectItem>
+                        <SelectItem value="failed">Failed</SelectItem>
+                    </SelectContent>
+                </Select>
+                <Input
+                    type="date"
+                    placeholder="Start Date"
+                    value={dateRange.startDate}
+                    onChange={(e) => setDateRange(prev => ({ ...prev, startDate: e.target.value }))}
+                />
+                <Input
+                    type="date"
+                    placeholder="End Date"
+                    value={dateRange.endDate}
+                    onChange={(e) => setDateRange(prev => ({ ...prev, endDate: e.target.value }))}
+                />
+                <div className="flex gap-2">
+                    <Button onClick={handleFilter} className="w-full"><SearchIcon className="h-4 w-4 mr-2" />Filter</Button>
+                    <Button onClick={handleClearFilters} variant="outline" className="w-full"><FilterX className="h-4 w-4 mr-2" />Clear</Button>
                 </div>
-                <Input
-                  type="number"
-                  placeholder="Min Price"
-                  value={priceRange.minPrice}
-                  onChange={(e) => setPriceRange(prev => ({ ...prev, minPrice: e.target.value }))}
-                  className="w-[120px]"
-                />
-                <Input
-                  type="number"
-                  placeholder="Max Price"
-                  value={priceRange.maxPrice}
-                  onChange={(e) => setPriceRange(prev => ({ ...prev, maxPrice: e.target.value }))}
-                  className="w-[120px]"
-                />
-                <Button onClick={handleFilter}><SearchIcon className="h-4 w-4 mr-2" />Filter</Button>
-                <Button onClick={handleClearFilters} variant="outline"><FilterX className="h-4 w-4 mr-2" />Clear</Button>
             </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle>Bookings</CardTitle>
+            <CardDescription>View all bookings.</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead>Booking ID</TableHead>
                     <TableHead>Customer</TableHead>
                     <TableHead>Provider</TableHead>
                     <TableHead>Service</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead>Address</TableHead>
-                    <TableHead>Booking Date</TableHead>
-                    <TableHead>Time</TableHead>
-                    <TableHead>Start Time</TableHead>
-                    <TableHead>Completion Time</TableHead>
-                    <TableHead>Price</TableHead>
+                    <TableHead>Service Address</TableHead>
+                    <TableHead>Pricing Details</TableHead>
                     <TableHead>Payment Status</TableHead>
                     <TableHead>Special Instructions</TableHead>
+                    <TableHead>Scheduled Date/Time</TableHead>
                     <TableHead>Created At</TableHead>
                     <TableHead>Updated At</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {data?.bookings.map((booking) => (
-                    <TableRow key={booking._id}>
-                      <TableCell>{booking.userId.userName}</TableCell>
-                      <TableCell>{booking.providerId?.userId.userName}</TableCell>
-                      <TableCell>{booking.serviceId.serviceName}</TableCell>
-                      <TableCell>
-                        <Badge className={getStatusBadgeVariant(booking.status ?? '')}>{booking.status?.replace(/_/g, " ")}</Badge>
+                  {data?.bookings && data.bookings.length > 0 ? (
+                    data.bookings.map((booking) => (
+                      <TableRow key={booking._id}>
+                        <TableCell>{booking._id}</TableCell>
+                        <TableCell>{booking.userId?.userName ?? 'N/A'}</TableCell>
+                        <TableCell>{booking.providerId?.userId?.userName ?? 'N/A'}</TableCell>
+                        <TableCell>{booking.serviceId?.serviceName ?? 'N/A'}</TableCell>
+                        <TableCell>
+                          <Badge className={getStatusBadgeVariant(booking.status ?? '')}>
+                            {booking.status?.replace(/_/g, " ") ?? 'N/A'}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          {booking.serviceAddress ? `${booking.serviceAddress.addressLine1}, ${booking.serviceAddress.city}, ${booking.serviceAddress.pincode}` : 'N/A'}
+                        </TableCell>
+                        <TableCell>
+                           <div className="flex flex-col">
+                              <span className="text-sm text-muted-foreground">Base: ${booking.pricing?.basePrice.toFixed(2) ?? 'N/A'}</span>
+                              <span className="font-semibold">Final: ${booking.pricing?.finalAmount.toFixed(2) ?? 'N/A'}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge className={getStatusBadgeVariant(booking.paymentDetails?.paymentStatus ?? '')}>
+                             {getPaymentStatusText(booking.paymentDetails?.paymentStatus ?? 'N/A')}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="max-w-xs">{booking.specialInstructions ?? 'N/A'}</TableCell>
+                        <TableCell>{booking.scheduledDateTime ? new Date(booking.scheduledDateTime).toLocaleString() : 'N/A'}</TableCell>
+                        <TableCell>{new Date(booking.createdAt).toLocaleString()}</TableCell>
+                        <TableCell>{new Date(booking.updatedAt).toLocaleString()}</TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={12} className="text-center">
+                        No bookings found.
                       </TableCell>
-                      <TableCell>{booking.serviceAddress.addressLine1}, {booking.serviceAddress.city}</TableCell>
-                      <TableCell>{new Date(booking.scheduledDateTime).toLocaleDateString()}</TableCell>
-                      <TableCell>{new Date(booking.scheduledDateTime).toLocaleTimeString()}</TableCell>
-                      <TableCell>{booking.startedAt ? new Date(booking.startedAt).toLocaleTimeString() : 'N/A'}</TableCell>
-                      <TableCell>{booking.completedAt ? new Date(booking.completedAt).toLocaleTimeString() : 'N/A'}</TableCell>
-                      <TableCell>${ booking.pricing.finalAmount.toFixed(2) }</TableCell>
-                      <TableCell>{booking.paymentDetails?.paymentStatus ?? 'N/A'}</TableCell>
-                      <TableCell>{booking.specialInstructions ?? 'N/A'}</TableCell>
-                      <TableCell>{new Date(booking.createdAt).toLocaleString()}</TableCell>
-                      <TableCell>{new Date(booking.updatedAt).toLocaleString()}</TableCell>
                     </TableRow>
-                  ))}
+                  )}
                 </TableBody>
               </Table>
             </div>

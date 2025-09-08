@@ -39,10 +39,18 @@ export const deleteDiscount = async (id: string): Promise<void> => {
 };
 
 export const searchDiscounts = async (
-  query: string,
+  query: string | null,
+  status: string | null
 ): Promise<HydratedDocument<IDiscount>[]> => {
-  const searchQuery = new RegExp(query, "i");
-  return await Discount.find({ promoCode: { $regex: searchQuery } })
+  const filter: any = {};
+  if (query) {
+    filter.promoCode = { $regex: query, $options: "i" };
+  }
+  if (status && status !== 'all') {
+    filter.isActive = status === 'true';
+  }
+
+  return await Discount.find(filter)
     .populate("category", "categoryName")
     .populate("service", "serviceName")
     .lean();

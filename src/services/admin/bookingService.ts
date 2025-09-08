@@ -1,6 +1,9 @@
+// src/services/admin/bookingService.ts
+
 import Booking, { IBooking } from "@/database/bookingModel";
-import { HydratedDocument, PipelineStage } from "mongoose";
+import { HydratedDocument, PipelineStage, Types } from "mongoose";
 import User from "@/database/userModel";
+import Payment from "@/database/paymentModel";
 import "@/database/ProviderModel";
 import "@/database/serviceModel";
 
@@ -10,21 +13,23 @@ export const getAllBookings = async (
   searchQuery?: string | null,
   statusFilter?: string | null,
   startDate?: string | null,
-  endDate?: string | null
+  endDate?: string | null,
+  paymentStatusFilter?: string | null,
+  specialInstructionsSearch?: string | null
 ): Promise<{
   bookings: HydratedDocument<IBooking>[];
   totalBookings: number;
 }> => {
   const skip = (page - 1) * limit;
-  
+
   const matchConditions: any = {};
 
   if (statusFilter) {
-    matchConditions.bookingStatus = statusFilter;
+    matchConditions.status = statusFilter;
   }
 
   if (startDate && endDate) {
-    matchConditions.scheduledAt = {
+    matchConditions.scheduledDateTime = {
       $gte: new Date(startDate),
       $lte: new Date(endDate),
     };
@@ -32,14 +37,13 @@ export const getAllBookings = async (
       const date = new Date(startDate);
       const nextDate = new Date(date);
       nextDate.setDate(date.getDate() + 1);
-      matchConditions.scheduledAt = {
+      matchConditions.scheduledDateTime = {
         $gte: date,
         $lt: nextDate
       };
   }
-
+  
   const pipeline: PipelineStage[] = [
-    { $match: matchConditions },
     {
       $lookup: {
         from: 'users',
@@ -76,27 +80,63 @@ export const getAllBookings = async (
         }
     },
     { $unwind: { path: '$providerId.userId', preserveNullAndEmptyArrays: true } },
+    {
+        $lookup: {
+            from: 'payments',
+            localField: '_id',
+            foreignField: 'bookingId',
+            as: 'paymentDetails'
+        }
+    },
+    { $unwind: { path: '$paymentDetails', preserveNullAndEmptyArrays: true } },
   ];
 
   if (searchQuery) {
     const searchRegex = new RegExp(searchQuery, 'i');
+    const searchConditions = [
+      { 'userId.userName': searchRegex },
+      { 'providerId.userId.userName': searchRegex },
+      { 'serviceId.serviceName': searchRegex },
+    ];
+
+    if (Types.ObjectId.isValid(searchQuery)) {
+      searchConditions.push({ _id: new Types.ObjectId(searchQuery) } as any);
+    }
+
     pipeline.push({
       $match: {
-        $or: [
-          { 'userId.userName': searchRegex },
-          { 'providerId.userId.userName': searchRegex },
-          { 'serviceId.serviceName': searchRegex },
-        ],
+        $or: searchConditions,
+      }
+    });
+  }
+  
+  if (specialInstructionsSearch) {
+    const specialInstructionsRegex = new RegExp(specialInstructionsSearch, 'i');
+    pipeline.push({
+      $match: {
+        specialInstructions: { $regex: specialInstructionsRegex }
       }
     });
   }
 
+  if (statusFilter) {
+    pipeline.push({
+      $match: { "status": statusFilter }
+    });
+  }
+  
+  if (paymentStatusFilter) {
+    pipeline.push({
+      $match: { "paymentDetails.paymentStatus": paymentStatusFilter }
+    });
+  }
+  
   const countPipeline = [...pipeline, { $count: 'total' }];
 
   pipeline.push(
-    { $sort: { scheduledAt: -1 } },
+    { $sort: { scheduledDateTime: -1 } },
     { $skip: skip },
-    { $limit: limit },
+    { $limit: limit }
   )
 
   const [bookingsResult, countResult] = await Promise.all([
@@ -139,6 +179,16 @@ export const updateBooking = async (
 // ✅ Search bookings (fixed consumerId → userId, bookingStatus → status, scheduledAt → scheduledDateTime)
 export const searchBookings = async (query: string): Promise<any[]> => {
   const searchQuery = new RegExp(query, "i");
+  const searchConditions: any[] = [
+    { "consumerDetails.userName": { $regex: searchQuery } },
+    { "providerUserDetails.userName": { $regex: searchQuery } },
+    { "serviceDetails.serviceName": { $regex: searchQuery } },
+    { "specialInstructions": { $regex: searchQuery } },
+  ];
+
+  if (Types.ObjectId.isValid(query)) {
+    searchConditions.push({ _id: new Types.ObjectId(query) });
+  }
 
   return await Booking.aggregate([
     {
@@ -183,25 +233,32 @@ export const searchBookings = async (query: string): Promise<any[]> => {
     },
     { $unwind: { path: "$serviceDetails", preserveNullAndEmptyArrays: true } },
     {
+        $lookup: {
+            from: "payments",
+            localField: "_id",
+            foreignField: "bookingId",
+            as: "paymentDetails",
+        },
+    },
+    { $unwind: { path: "$paymentDetails", preserveNullAndEmptyArrays: true } },
+    {
       $match: {
-        $or: [
-          { "consumerDetails.userName": { $regex: searchQuery } },
-          { "providerUserDetails.userName": { $regex: searchQuery } },
-          { "serviceDetails.serviceName": { $regex: searchQuery } },
-        ],
+        $or: searchConditions
       },
     },
     {
       $project: {
         _id: 1,
-        userId: "$consumerDetails", // ✅ instead of consumerId
+        userId: "$consumerDetails",
         providerId: {
           userId: "$providerUserDetails",
         },
         serviceId: "$serviceDetails",
-        bookingStatus: 1, // ✅ instead of status
-        scheduledAt: 1, // ✅ instead of scheduledDateTime
+        status: "$status",
+        scheduledDateTime: "$scheduledDateTime",
         pricing: 1,
+        paymentDetails: 1,
+        specialInstructions: 1
       },
     },
   ]);
@@ -210,9 +267,9 @@ export const searchBookings = async (query: string): Promise<any[]> => {
 // ✅ Booking stats (fixed field name)
 export const getBookingStats = async () => {
   const total = await Booking.countDocuments();
-  const completed = await Booking.countDocuments({ bookingStatus: "completed" });
+  const completed = await Booking.countDocuments({ status: "completed" });
   const cancelled = await Booking.countDocuments({
-    bookingStatus: { $in: ["cancelled_by_user", "cancelled_by_provider","cancelled"] },
+    status: { $in: ["cancelled_by_user", "cancelled_by_provider","cancelled"] },
   });
 
   return { total, completed, cancelled };
