@@ -1,3 +1,4 @@
+// src/app/(admin)/providers/page.tsx
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -39,6 +40,16 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { getAllCategories } from "@/services/admin/categoryService";
+import { IServiceCategory } from "@/database/serviceCategoryModel";
+import { IService } from "@/database/serviceModel";
 
 const PROVIDERS_PER_PAGE = 5;
 
@@ -67,7 +78,8 @@ interface IProviderStats {
 
 async function fetchProviders(
   page: number,
-  search: string
+  search: string,
+  category: string
 ): Promise<IProviderData> {
   const token = localStorage.getItem("admin_token");
   const url = new URL("/api/providers", window.location.origin);
@@ -75,6 +87,9 @@ async function fetchProviders(
   url.searchParams.append("limit", PROVIDERS_PER_PAGE.toString());
   if (search) {
     url.searchParams.append("search", search);
+  }
+  if (category && category !== "all") {
+    url.searchParams.append("category", category);
   }
   const res = await fetch(url.toString(), {
     headers: { Authorization: `Bearer ${token}` },
@@ -94,6 +109,17 @@ async function fetchProviderStats(): Promise<IProviderStats> {
   });
   if (!res.ok) {
     throw new Error("Failed to fetch provider stats");
+  }
+  return res.json();
+}
+
+async function fetchCategories(): Promise<IServiceCategory[]> {
+  const token = localStorage.getItem("admin_token");
+  const res = await fetch("/api/categories", {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) {
+    throw new Error("Failed to fetch categories");
   }
   return res.json();
 }
@@ -149,17 +175,25 @@ export default function ProvidersPage() {
   const queryClient = useQueryClient();
   const [currentPage, setCurrentPage] = useState(1);
   const [searchInput, setSearchInput] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("all");
   const [activeSearch, setActiveSearch] = useState("");
+  const [activeCategory, setActiveCategory] = useState("all");
+
 
   const { data, isLoading, isError, refetch } = useQuery<IProviderData>({
-    queryKey: ["providers", currentPage, activeSearch],
-    queryFn: () => fetchProviders(currentPage, activeSearch),
+    queryKey: ["providers", currentPage, activeSearch, activeCategory],
+    queryFn: () => fetchProviders(currentPage, activeSearch, activeCategory),
     keepPreviousData: true,
   });
 
   const { data: stats, isLoading: statsLoading } = useQuery<IProviderStats>({
     queryKey: ["providerStats"],
     queryFn: fetchProviderStats,
+  });
+
+  const { data: categories, isLoading: categoriesLoading } = useQuery<IServiceCategory[]>({
+    queryKey: ["categories"],
+    queryFn: fetchCategories,
   });
 
   const { providers, totalProviders } = data || { providers: [], totalProviders: 0 };
@@ -185,9 +219,10 @@ export default function ProvidersPage() {
   const handleSearch = () => {
     setCurrentPage(1);
     setActiveSearch(searchInput);
+    setActiveCategory(categoryFilter);
   };
 
-  if (isLoading || statsLoading)
+  if (isLoading || statsLoading || categoriesLoading)
     return (
       <div className="flex items-center justify-center h-[calc(100vh-8rem)]">
         <Loader />
@@ -235,7 +270,20 @@ export default function ProvidersPage() {
               }}
               className="max-w-sm"
             />
-            <Button onClick={handleSearch}>Search</Button>
+            <Select onValueChange={setCategoryFilter} value={categoryFilter}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Filter by Category" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Categories</SelectItem>
+                {categories?.map((category) => (
+                  <SelectItem key={category._id} value={category._id}>
+                    {category.categoryName}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button onClick={handleSearch}>Search & Filter</Button>
           </div>
         </CardHeader>
         <CardContent>

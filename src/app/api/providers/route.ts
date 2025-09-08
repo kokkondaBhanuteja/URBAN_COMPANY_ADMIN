@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { adminMiddleware } from "@/middlewares/adminMiddleware";
-import { getAllProviders, deleteProvider, searchProviders, updateProviderVerification, getProviderStats } from "@/services/admin/providerService";
+import { getAllProviders, deleteProvider, updateProviderVerification, getProviderStats } from "@/services/admin/providerService";
 import { connectDb } from "@/lib/dbConnect";
 
 export async function GET(req: NextRequest) {
@@ -12,25 +12,16 @@ export async function GET(req: NextRequest) {
   const searchQuery = searchParams.get('search');
   const getStats = searchParams.get('stats');
   const page = parseInt(searchParams.get('page') || '1', 10);
-  const limit = parseInt(searchParams.get('limit') || '10', 10);
+  const limit = parseInt(searchParams.get('limit') || '5', 10);
+  const categoryId = searchParams.get('category');
 
   try {
-    console.log("In GET /api/providers");
     if (getStats) {
-      console.log("Getting stats...");
       const stats = await getProviderStats();
       return NextResponse.json(stats);
     }
-    if (searchQuery) {
-      console.log("Searching for providers with query:", searchQuery);
-      const { providers, totalProviders } = await searchProviders(searchQuery);
-      return NextResponse.json({ providers, totalProviders });
-    }
 
-    console.log("Getting all providers...");
-    const { providers, totalProviders } = await getAllProviders(page, limit);
-    console.log("Total Providers from service:", totalProviders);
-    console.log("Providers on this page from service:", providers);
+    const { providers, totalProviders } = await getAllProviders(page, limit, categoryId, searchQuery);
     return NextResponse.json({ providers, totalProviders });
 
   } catch (error) {

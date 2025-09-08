@@ -37,9 +37,13 @@ interface IProviderPayment {
   payoutSchedule: string;
 }
 
-async function fetchProviderPayments(searchQuery: string): Promise<IProviderPayment[]> {
+const PAYMENTS_PER_PAGE = 5;
+
+async function fetchProviderPayments(page: number, searchQuery: string): Promise<{providerPayments: IProviderPayment[], totalProviders: number}> {
   const token = localStorage.getItem("admin_token");
   const url = new URL("/api/provider-payments", window.location.origin);
+  url.searchParams.append('page', page.toString());
+  url.searchParams.append('limit', PAYMENTS_PER_PAGE.toString());
   if (searchQuery) {
     url.searchParams.append("search", searchQuery);
   }
@@ -70,14 +74,20 @@ async function processPayouts(providerIds: string[]) {
 export default function ProviderPaymentsPage() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const [currentPage, setCurrentPage] = useState(1);
   const [searchInput, setSearchInput] = useState("");
   const [activeSearch, setActiveSearch] = useState("");
   const [selectedProviders, setSelectedProviders] = useState<string[]>([]);
 
-  const { data: providerPayments, isLoading, isError, refetch } = useQuery<IProviderPayment[]>({
-    queryKey: ["providerPayments", activeSearch],
-    queryFn: () => fetchProviderPayments(activeSearch),
+  const { data, isLoading, isError, refetch } = useQuery<{ providerPayments: IProviderPayment[], totalProviders: number}>({
+    queryKey: ["providerPayments", currentPage, activeSearch],
+    queryFn: () => fetchProviderPayments(currentPage, activeSearch),
+    keepPreviousData: true
   });
+
+  const providerPayments = data?.providerPayments || [];
+  const totalProviders = data?.totalProviders || 0;
+  const totalPages = Math.ceil(totalProviders / PAYMENTS_PER_PAGE);
 
   const processPayoutsMutation = useMutation({
     mutationFn: processPayouts,
@@ -92,6 +102,7 @@ export default function ProviderPaymentsPage() {
   });
 
   const handleSearch = () => {
+    setCurrentPage(1);
     setActiveSearch(searchInput);
   };
 
@@ -185,6 +196,29 @@ export default function ProviderPaymentsPage() {
           </Table>
         </CardContent>
       </Card>
+      {totalPages > 1 && (
+        <div className="flex items-center justify-end space-x-2 py-4">
+            <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
+                disabled={currentPage === 1}
+            >
+                Previous
+            </Button>
+            <span>
+                Page {currentPage} of {totalPages}
+            </span>
+            <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
+                disabled={currentPage === totalPages}
+            >
+                Next
+            </Button>
+        </div>
+      )}
     </div>
   );
 }

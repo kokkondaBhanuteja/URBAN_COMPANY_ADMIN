@@ -1,3 +1,4 @@
+// src/app/(admin)/bookings/page.tsx
 "use client";
 
 import { useQuery } from '@tanstack/react-query';
@@ -9,9 +10,20 @@ import Loader from '@/components/shared/Loader';
 import ErrorMessage from '@/components/shared/ErrorMessage';
 import StatCard from '@/components/shared/StatCard';
 import { Button } from '@/components/ui/button';
-import { Calendar, CheckCircle, XCircle } from 'lucide-react';
+import { Calendar, CheckCircle, XCircle, SearchIcon } from 'lucide-react';
+import {
+  Input,
+} from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
-const BOOKINGS_PER_PAGE = 10;
+
+const BOOKINGS_PER_PAGE = 5;
 
 interface IBooking {
     _id: string;
@@ -34,11 +46,14 @@ interface IBookingStats {
     cancelled: number;
 }
 
-async function fetchBookings(page: number): Promise<IBookingsData> {
+async function fetchBookings(page: number, search: string, status: string): Promise<IBookingsData> {
     const token = localStorage.getItem('admin_token');
     const url = new URL('/api/bookings', window.location.origin);
     url.searchParams.append('page', page.toString());
     url.searchParams.append('limit', BOOKINGS_PER_PAGE.toString());
+    if (search) url.searchParams.append('search', search);
+    if (status) url.searchParams.append('status', status);
+
     const res = await fetch(url.toString(), {
         headers: { Authorization: `Bearer ${token}` },
     });
@@ -80,9 +95,14 @@ const getStatusBadgeVariant = (status: string) => {
 
 export default function BookingsPage() {
     const [currentPage, setCurrentPage] = useState(1);
-    const { data, isLoading, isError, refetch } = useQuery<IBookingsData>({ 
-        queryKey: ['bookings', currentPage], 
-        queryFn: () => fetchBookings(currentPage),
+    const [searchInput, setSearchInput] = useState('');
+    const [statusFilter, setStatusFilter] = useState('all');
+    const [activeSearch, setActiveSearch] = useState('');
+    const [activeStatus, setActiveStatus] = useState('all');
+
+    const { data, isLoading, isError, refetch } = useQuery<IBookingsData>({
+        queryKey: ['bookings', currentPage, activeSearch, activeStatus],
+        queryFn: () => fetchBookings(currentPage, activeSearch, activeStatus === 'all' ? '' : activeStatus),
         keepPreviousData: true,
     });
 
@@ -90,7 +110,15 @@ export default function BookingsPage() {
       queryKey: ['bookingStats'],
       queryFn: fetchBookingStats,
     });
-    console.log('Stats:', stats);
+
+    const totalPages = data ? Math.ceil(data.totalBookings / BOOKINGS_PER_PAGE) : 0;
+    
+    const handleSearchAndFilter = () => {
+        setCurrentPage(1);
+        setActiveSearch(searchInput);
+        setActiveStatus(statusFilter);
+    };
+
 
     if (isLoading || statsLoading) return (
       <div className="flex items-center justify-center h-[calc(100vh-8rem)]">
@@ -103,8 +131,7 @@ export default function BookingsPage() {
       </div>
     );
 
-    const totalPages = data ? Math.ceil(data.totalBookings / BOOKINGS_PER_PAGE) : 0;
-    console.log(data)
+
   return (
     <div className="space-y-6">
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -116,12 +143,36 @@ export default function BookingsPage() {
           <CardHeader>
             <CardTitle>Bookings</CardTitle>
             <CardDescription>View all bookings.</CardDescription>
+            <div className="flex items-center gap-2 pt-4">
+                <Input
+                    placeholder="Search customer, provider, or service..."
+                    value={searchInput}
+                    onChange={(e) => setSearchInput(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && handleSearchAndFilter()}
+                    className="max-w-sm"
+                />
+                <Select onValueChange={setStatusFilter} value={statusFilter}>
+                    <SelectTrigger className="w-[180px]">
+                        <SelectValue placeholder="Filter by Status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="all">All Statuses</SelectItem>
+                        <SelectItem value="requested">Requested</SelectItem>
+                        <SelectItem value="confirmed">Confirmed</SelectItem>
+                        <SelectItem value="assigned">Assigned</SelectItem>
+                        <SelectItem value="in_progress">In Progress</SelectItem>
+                        <SelectItem value="completed">Completed</SelectItem>
+                        <SelectItem value="cancelled_by_user">Cancelled by User</SelectItem>
+                        <SelectItem value="cancelled_by_provider">Cancelled by Provider</SelectItem>
+                    </SelectContent>
+                </Select>
+                <Button onClick={handleSearchAndFilter}><SearchIcon className="h-4 w-4 mr-2" />Search & Filter</Button>
+            </div>
           </CardHeader>
           <CardContent>
             <Table>
               <TableHeader>
                 <TableRow>
-                  {/* <TableHead>Booking ID</TableHead> */}
                   <TableHead>Customer</TableHead>
                   <TableHead>Provider</TableHead>
                   <TableHead>Service</TableHead>
@@ -133,12 +184,11 @@ export default function BookingsPage() {
               <TableBody>
                 {data?.bookings.map((booking) => (
                   <TableRow key={booking._id}>
-                    {/* <TableCell>{booking._id}</TableCell> */}
                     <TableCell>{booking.userId.userName }</TableCell>
                     <TableCell>{booking.providerId?.userId.userName }</TableCell>
                     <TableCell>{booking.serviceId.serviceName}</TableCell>
                     <TableCell>
-                      <Badge className={getStatusBadgeVariant(booking.status)}>{booking.status}</Badge>
+                      <Badge className={getStatusBadgeVariant(booking.status ?? '')}>{booking.status?.replace(/_/g, " ")}</Badge>
                     </TableCell>
                     <TableCell>{new Date(booking.scheduledDateTime).toLocaleDateString()}</TableCell>
                     <TableCell>${ booking.pricing.finalAmount.toFixed(2) }</TableCell>

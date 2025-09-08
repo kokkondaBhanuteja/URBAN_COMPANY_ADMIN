@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { getAllBookings, searchBookings, getBookingStats } from "@/services/admin/bookingService";
+import { getAllBookings, getBookingStats } from "@/services/admin/bookingService";
 import { connectDb } from "@/lib/dbConnect";
 import { adminMiddleware } from "@/middlewares/adminMiddleware";
 
@@ -12,18 +12,15 @@ export async function GET(req: NextRequest) {
     const searchQuery = searchParams.get("search");
     const getStats = searchParams.get('stats');
     const page = parseInt(searchParams.get('page') || '1', 10);
-    const limit = parseInt(searchParams.get('limit') || '10', 10);
+    const limit = parseInt(searchParams.get('limit') || '5', 10); // Changed to 5
+    const statusFilter = searchParams.get('status');
 
     if (getStats) {
         const stats = await getBookingStats();
         return NextResponse.json(stats);
     }
-
-    if (searchQuery) {
-      const bookings = await searchBookings(searchQuery);
-      return NextResponse.json(bookings);
-    }
-    const { bookings, totalBookings } = await getAllBookings(page, limit);
+    
+    const { bookings, totalBookings } = await getAllBookings(page, limit, searchQuery, statusFilter);
     return NextResponse.json({ bookings, totalBookings });
   } catch (error) {
     return NextResponse.json(

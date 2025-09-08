@@ -4,53 +4,220 @@ import ProviderPayout, {
 import Provider from "@/database/ProviderModel";
 import Payment, { IPayment } from "@/database/paymentModel";
 import User from "@/database/userModel";
+import Booking from "@/database/bookingModel";
 
 import { HydratedDocument } from "mongoose";
 
-export const getAllPayments = async (): Promise<{
+export const getAllPayments = async (
+  page: number,
+  limit: number,
+  searchQuery?: string,
+  statusFilter?: string,
+  dateFilter?: string
+): Promise<{
   payments: HydratedDocument<IPayment>[];
+  totalPayments: number;
   totalRevenue: number;
 }> => {
-  const payments = await Payment.find({}).populate("bookingId").lean();
-  console.log(payments)
-  const totalRevenue = payments.reduce((acc, p) => acc + p.amount, 0);
-  return { payments, totalRevenue };
-};
-export const getProviderPayments = async () => {
-  const providers = await Provider.find().populate("userId").lean();
-  const providerPayments = [];
-  let totalRevenue = 0;
+  const skip = (page - 1) * limit;
+  let matchQuery = {};
 
-  for (const provider of providers) {
-    const payouts = await ProviderPayout.find({
-      providerId: provider._id,
-    }).lean();
-    const totalEarnings = payouts.reduce((acc, p) => acc + p.netPayout, 0);
-    totalRevenue += totalEarnings;
-    const pendingPayouts = payouts
-      .filter((p) => p.status === "pending")
-      .reduce((acc, p) => acc + p.netPayout, 0);
-    const lastPayout = await ProviderPayout.findOne({
-      providerId: provider._id,
-      status: "processed",
-    }).sort({ processedAt: -1 });
-
-    providerPayments.push({
-      _id: provider._id,
-      providerId: provider._id,
-      provider: {
-        userName: (provider.userId as any).userName,
-        email: (provider.userId as any).email,
-      },
-      paymentMethods: [], // This would require a separate collection or be part of the provider model
-      totalEarnings,
-      pendingPayouts,
-      lastPayoutDate: lastPayout?.processedAt,
-      payoutSchedule: "weekly", // This would need to be stored in the provider model
-    });
+  if (statusFilter) {
+    matchQuery = { paymentStatus: statusFilter };
   }
 
-  return providerPayments;
+  if (dateFilter) {
+    const startDate = new Date(dateFilter);
+    const endDate = new Date(startDate);
+    endDate.setDate(endDate.getDate() + 1);
+    matchQuery = {
+      ...matchQuery,
+      createdAt: {
+        $gte: startDate,
+        $lt: endDate,
+      },
+    };
+  }
+
+  const pipeline = [
+    {
+      $lookup: {
+        from: Booking.collection.name,
+        localField: "bookingId",
+        foreignField: "_id",
+        as: "bookingDetails",
+      },
+    },
+    { $unwind: { path: "$bookingDetails", preserveNullAndEmptyArrays: true } },
+    {
+      $lookup: {
+        from: "providers",
+        localField: "bookingDetails.providerId",
+        foreignField: "_id",
+        as: "providerDetails",
+      },
+    },
+    { $unwind: { path: "$providerDetails", preserveNullAndEmptyArrays: true } },
+    {
+      $lookup: {
+        from: User.collection.name,
+        localField: "providerDetails.userId",
+        foreignField: "_id",
+        as: "providerUserDetails",
+      },
+    },
+    { $unwind: { path: "$providerUserDetails", preserveNullAndEmptyArrays: true } },
+    {
+      $match: {
+        ...matchQuery,
+        ...(searchQuery && {
+          $or: [
+            { "providerUserDetails.userName": { $regex: searchQuery, $options: "i" } },
+            { "paymentMethod": { $regex: searchQuery, $options: "i" } },
+          ],
+        }),
+      },
+    },
+    {
+      $facet: {
+        payments: [
+          { $skip: skip },
+          { $limit: limit },
+          {
+            $project: {
+              _id: 1,
+              bookingId: 1,
+              amount: 1,
+              paymentStatus: 1,
+              paymentMethod: 1,
+              providerName: "$providerUserDetails.userName",
+              createdAt: 1
+            },
+          },
+        ],
+        totalCount: [
+          { $count: "count" }
+        ],
+        totalRevenue: [
+          { $group: { _id: null, total: { $sum: "$amount" } } }
+        ]
+      }
+    }
+  ];
+
+  const result = await Payment.aggregate(pipeline);
+  const payments = result[0].payments;
+  const totalPayments = result[0].totalCount.length > 0 ? result[0].totalCount[0].count : 0;
+  const totalRevenue = result[0].totalRevenue.length > 0 ? result[0].totalRevenue[0].total : 0;
+  return { payments, totalPayments, totalRevenue };
+};
+
+export const getPaymentStats = async () => {
+  const successful = await Payment.countDocuments({ paymentStatus: "successful" });
+  const failed = await Payment.countDocuments({ paymentStatus: "failed" });
+  const pending = await Payment.countDocuments({ paymentStatus: "pending" });
+  const totalRevenue = await Payment.aggregate([
+    {
+      $group: {
+        _id: null,
+        total: { $sum: "$amount" },
+      },
+    },
+  ]);
+
+  return { 
+    successful, 
+    failed, 
+    pending,
+    totalRevenue: totalRevenue.length > 0 ? totalRevenue[0].total : 0,
+  };
+};
+
+export const getProviderPayments = async (page: number, limit: number, searchQuery: string): Promise<any> => {
+  let matchQuery: any = {};
+  if (searchQuery) {
+    matchQuery = {
+      $or: [
+        { "provider.userName": { $regex: searchQuery, $options: "i" } },
+        { "provider.email": { $regex: searchQuery, $options: "i" } },
+      ],
+    };
+  }
+
+  const pipeline = [
+    {
+      $lookup: {
+        from: User.collection.name,
+        localField: "userId",
+        foreignField: "_id",
+        as: "userDetails",
+      },
+    },
+    { $unwind: "$userDetails" },
+    {
+      $lookup: {
+        from: ProviderPayout.collection.name,
+        localField: "_id",
+        foreignField: "providerId",
+        as: "payouts",
+      },
+    },
+    {
+      $project: {
+        _id: "$_id",
+        provider: {
+          userName: "$userDetails.userName",
+          email: "$userDetails.email",
+        },
+        totalEarnings: { $sum: "$payouts.netPayout" },
+        pendingPayouts: {
+          $sum: {
+            $filter: {
+              input: "$payouts",
+              as: "payout",
+              cond: { $eq: ["$$payout.status", "pending"] },
+            },
+          }.netPayout,
+        },
+        lastPayoutDate: {
+          $arrayElemAt: [
+            {
+              $sortArray: {
+                input: {
+                  $filter: {
+                    input: "$payouts",
+                    as: "payout",
+                    cond: { $eq: ["$$payout.status", "processed"] },
+                  },
+                },
+                sortBy: { processedAt: -1 },
+              },
+            },
+            0,
+          ],
+        },
+        payoutSchedule: "weekly",
+      },
+    },
+    { $match: matchQuery },
+    {
+      $facet: {
+        providerPayments: [
+          { $skip: (page - 1) * limit },
+          { $limit: limit },
+        ],
+        totalCount: [
+          { $count: "count" },
+        ],
+      },
+    },
+  ];
+
+  const result = await Provider.aggregate(pipeline);
+  const providerPayments = result[0].providerPayments;
+  const totalProviders = result[0].totalCount.length > 0 ? result[0].totalCount[0].count : 0;
+
+  return { providerPayments, totalProviders };
 };
 
 export const searchProviderPayments = async (query: string) => {
@@ -104,8 +271,6 @@ export const processPayoutsForProviders = async (providerIds: string[]) => {
     status: "pending",
   });
 
-  // In a real app, you would integrate with a payment gateway here.
-  // For now, we will just mark them as processed.
   for (const payout of payoutsToProcess) {
     payout.status = "processed";
     payout.processedAt = new Date();

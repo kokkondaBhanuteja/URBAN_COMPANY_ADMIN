@@ -1,36 +1,32 @@
 import Provider, { IProvider } from "@/database/ProviderModel";
 import User from "@/database/userModel";
 import { HydratedDocument } from "mongoose";
+import Service from "@/database/serviceModel";
 
 export const getAllProviders = async (
   page: number,
-  limit: number
+  limit: number,
+  categoryId?: string,
+  searchQuery?: string
 ): Promise<{
   providers: HydratedDocument<IProvider>[];
   totalProviders: number;
 }> => {
   const skip = (page - 1) * limit;
-  console.log("Fetching providers...");
-  const totalProviders = await Provider.countDocuments();
-  const providers = await Provider.find({})
-    .populate({
-      path: "userId",
-      model: User,
-    })
-    .skip(skip)
-    .limit(limit)
-    .lean();
-  return { providers, totalProviders };
-};
 
-export const searchProviders = async (
-  query: string
-): Promise<{
-  providers: HydratedDocument<IProvider>[];
-  totalProviders: number;
-}> => {
-  const searchQuery = new RegExp(query, "i");
-  const providers = await Provider.aggregate([
+  let matchQuery = {};
+
+  if (searchQuery) {
+    const searchRegex = new RegExp(searchQuery, "i");
+    matchQuery = {
+      $or: [
+        { "userDetails.userName": { $regex: searchRegex } },
+        { "userDetails.email": { $regex: searchRegex } },
+      ],
+    };
+  }
+
+  const pipeline = [
     {
       $lookup: {
         from: User.collection.name,
@@ -39,28 +35,63 @@ export const searchProviders = async (
         as: "userDetails",
       },
     },
+    { $unwind: "$userDetails" },
     {
-      $unwind: "$userDetails",
+      $lookup: {
+        from: Service.collection.name,
+        localField: "servicesOffered",
+        foreignField: "_id",
+        as: "serviceDetails",
+      },
+    },
+    { $match: matchQuery },
+    {
+      $addFields: {
+        firstService: { $arrayElemAt: ["$serviceDetails", 0] }
+      }
     },
     {
-      $match: {
-        $or: [
-          { "userDetails.userName": { $regex: searchQuery } },
-          { "userDetails.email": { $regex: searchQuery } },
+      $lookup: {
+        from: "servicecategories",
+        localField: "firstService.category",
+        foreignField: "_id",
+        as: "categoryDetails"
+      }
+    },
+    {
+      $unwind: { path: "$categoryDetails", preserveNullAndEmptyArrays: true }
+    },
+    {
+      $match: categoryId ? { "categoryDetails._id": new Object(categoryId) } : {}
+    },
+    {
+      $facet: {
+        providers: [
+          { $skip: skip },
+          { $limit: limit },
+          {
+            $project: {
+              _id: 1,
+              userId: "$userDetails",
+              servicesOffered: "$serviceDetails",
+              isVerified: 1,
+              averageRating: 1,
+            },
+          },
         ],
-      },
-    },
-    {
-      $project: {
-        _id: 1,
-        userId: "$userDetails",
-        isVerified: 1,
-        averageRating: 1,
-      },
-    },
-  ]);
-  return { providers, totalProviders: providers.length };
+        totalCount: [
+          { $count: "count" }
+        ]
+      }
+    }
+  ];
+
+  const result = await Provider.aggregate(pipeline);
+  const providers = result[0].providers;
+  const totalProviders = result[0].totalCount.length > 0 ? result[0].totalCount[0].count : 0;
+  return { providers, totalProviders };
 };
+
 
 export const getProviderById = async (
   id: string

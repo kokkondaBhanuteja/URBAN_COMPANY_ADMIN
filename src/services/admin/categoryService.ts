@@ -1,4 +1,3 @@
-// src/services/admin/categoryService.ts
 import ServiceCategory, { IServiceCategory } from "@/database/serviceCategoryModel";
 import { HydratedDocument } from "mongoose";
 
@@ -13,4 +12,8 @@ export const getAllCategoriesWithServices = async (): Promise<HydratedDocument<I
             },
         },
     ]);
+};
+
+export const getAllCategories = async (): Promise<HydratedDocument<IServiceCategory>[]> => {
+    return await ServiceCategory.find({});
 };
