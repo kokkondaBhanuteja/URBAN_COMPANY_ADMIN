@@ -12,15 +12,17 @@ export async function GET(req: NextRequest) {
     const searchQuery = searchParams.get("search");
     const getStats = searchParams.get('stats');
     const page = parseInt(searchParams.get('page') || '1', 10);
-    const limit = parseInt(searchParams.get('limit') || '5', 10); // Changed to 5
+    const limit = parseInt(searchParams.get('limit') || '5', 10);
     const statusFilter = searchParams.get('status');
+    const startDate = searchParams.get('startDate');
+    const endDate = searchParams.get('endDate');
 
     if (getStats) {
         const stats = await getBookingStats();
         return NextResponse.json(stats);
     }
     
-    const { bookings, totalBookings } = await getAllBookings(page, limit, searchQuery, statusFilter);
+    const { bookings, totalBookings } = await getAllBookings(page, limit, searchQuery, statusFilter, startDate, endDate);
     return NextResponse.json({ bookings, totalBookings });
   } catch (error) {
     return NextResponse.json(
