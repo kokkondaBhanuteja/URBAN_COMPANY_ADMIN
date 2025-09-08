@@ -51,7 +51,7 @@ export async function POST(request: NextRequest) {
       }
       payload.category = category;
     } else if (discountType === 'Service Specific') {
-      if (!category || !service) {
+      if ( !service) {
         return NextResponse.json({ error: "Category and Service IDs are required for Service Specific discount" }, { status: 400 });
       }
       payload.category = category;

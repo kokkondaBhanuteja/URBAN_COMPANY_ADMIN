@@ -8,12 +8,8 @@ export async function GET(req: NextRequest) {
   await connectDb();
   const adminAuthResponse = await adminMiddleware(req);
   if (adminAuthResponse.status !== 200) return adminAuthResponse;
-
-  const { searchParams } = new URL(req.url);
-  const categoryId = searchParams.get('categoryId');
-
   try {
-    const services = await Service.find({ category: categoryId });
+    const services = await Service.find();
     return NextResponse.json(services);
   } catch (error) {
     return NextResponse.json({ message: "An error occurred" }, { status: 500 });
