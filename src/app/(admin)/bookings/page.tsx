@@ -15,11 +15,11 @@ const BOOKINGS_PER_PAGE = 10;
 
 interface IBooking {
     _id: string;
-    consumerId: { userName: string };
+    userId:{userName: string} ;
     providerId?: { userId: { userName: string } };
     serviceId: { serviceName: string };
-    bookingStatus: string;
-    scheduledAt: string;
+    status: string;
+    scheduledDateTime: string;
     pricing: { finalAmount: number };
 }
 
@@ -90,6 +90,7 @@ export default function BookingsPage() {
       queryKey: ['bookingStats'],
       queryFn: fetchBookingStats,
     });
+    console.log('Stats:', stats);
 
     if (isLoading || statsLoading) return (
       <div className="flex items-center justify-center h-[calc(100vh-8rem)]">
@@ -120,7 +121,7 @@ export default function BookingsPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Booking ID</TableHead>
+                  {/* <TableHead>Booking ID</TableHead> */}
                   <TableHead>Customer</TableHead>
                   <TableHead>Provider</TableHead>
                   <TableHead>Service</TableHead>
@@ -132,9 +133,9 @@ export default function BookingsPage() {
               <TableBody>
                 {data?.bookings.map((booking) => (
                   <TableRow key={booking._id}>
-                    <TableCell>{booking._id}</TableCell>
-                    <TableCell>{booking.providerId?.userId.userName || 'N/A'}</TableCell>
-                    <TableCell>{booking.providerId?.userId.userName || 'N/A'}</TableCell>
+                    {/* <TableCell>{booking._id}</TableCell> */}
+                    <TableCell>{booking.userId.userName }</TableCell>
+                    <TableCell>{booking.providerId?.userId.userName }</TableCell>
                     <TableCell>{booking.serviceId.serviceName}</TableCell>
                     <TableCell>
                       <Badge className={getStatusBadgeVariant(booking.status)}>{booking.status}</Badge>

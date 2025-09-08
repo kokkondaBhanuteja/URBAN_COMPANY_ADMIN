@@ -34,7 +34,7 @@ async function fetchPayments(): Promise<IPaymentsData> {
 
 export default function PaymentsPage() {
     const { data, isLoading, isError, refetch } = useQuery<IPaymentsData>({ queryKey: ['payments'], queryFn: fetchPayments });
-
+    console.log(data);
     if (isLoading) return (
       <div className="flex items-center justify-center h-[calc(100vh-8rem)]">
         <Loader />
@@ -58,7 +58,7 @@ export default function PaymentsPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Payment ID</TableHead>
+                  {/* <TableHead>Payment ID</TableHead> */}
                   <TableHead>Booking ID</TableHead>
                   <TableHead>Amount</TableHead>
                   <TableHead>Status</TableHead>
@@ -68,7 +68,7 @@ export default function PaymentsPage() {
               <TableBody>
                 {data?.payments.map((payment) => (
                   <TableRow key={payment._id}>
-                    <TableCell>{payment._id}</TableCell>
+                    {/* <TableCell>{payment._id}</TableCell> */}
                     <TableCell>{payment.bookingId?._id ?? 'N/A'}</TableCell>
                     <TableCell>${payment.amount.toFixed(2)}</TableCell>
                     <TableCell>{payment.paymentStatus}</TableCell>

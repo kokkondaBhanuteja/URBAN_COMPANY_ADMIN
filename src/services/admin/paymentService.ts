@@ -12,6 +12,7 @@ export const getAllPayments = async (): Promise<{
   totalRevenue: number;
 }> => {
   const payments = await Payment.find({}).populate("bookingId").lean();
+  console.log(payments)
   const totalRevenue = payments.reduce((acc, p) => acc + p.amount, 0);
   return { payments, totalRevenue };
 };
