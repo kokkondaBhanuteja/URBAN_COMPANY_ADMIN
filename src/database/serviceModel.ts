@@ -8,6 +8,7 @@ export interface IService extends Document {
   priceUnit: "fixed" | "hourly" | "per_item";
   durationMinutes?: number;
   isActive: boolean;
+  imageUrl?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -29,6 +30,7 @@ const serviceSchema = new Schema<IService>(
     },
     durationMinutes: { type: Number },
     isActive: { type: Boolean, default: true },
+    imageUrl: { type: String },
   },
   { timestamps: true }
 );

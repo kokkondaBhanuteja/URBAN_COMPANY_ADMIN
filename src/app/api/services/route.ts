@@ -22,8 +22,8 @@ export async function POST(req: NextRequest) {
     if (adminAuthResponse.status !== 200) return adminAuthResponse;
 
     try {
-        const { serviceName, basePrice, category, description } = await req.json();
-        const newService = await addService({ serviceName, basePrice, category, description, priceUnit: 'fixed' });
+        const { serviceName, basePrice, category, description, imageUrl } = await req.json();
+        const newService = await addService({ serviceName, basePrice, category, description, priceUnit: 'fixed', imageUrl });
         return NextResponse.json(newService, { status: 201 });
     } catch (error) {
         return NextResponse.json({ message: "An error occurred" }, { status: 500 });

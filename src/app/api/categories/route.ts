@@ -23,8 +23,8 @@ export async function POST(req: NextRequest) {
     if (adminAuthResponse.status !== 200) return adminAuthResponse;
 
     try {
-        const { categoryName, description } = await req.json();
-        const newCategory = new ServiceCategory({ categoryName, description });
+        const { categoryName, description, imageUrl } = await req.json();
+        const newCategory = new ServiceCategory({ categoryName, description, imageUrl });
         await newCategory.save();
         return NextResponse.json(newCategory, { status: 201 });
     } catch (error) {

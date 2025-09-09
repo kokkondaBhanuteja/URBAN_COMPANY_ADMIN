@@ -46,6 +46,7 @@ interface IService {
   serviceName: string;
   basePrice: number;
   description?: string;
+  imageUrl?: string;
   category: {
     _id: string;
     categoryName: string;
@@ -56,6 +57,7 @@ interface ICategory {
   _id: string;
   categoryName: string;
   description?: string;
+  imageUrl?: string;
   services?: IService[];
 }
 
@@ -72,6 +74,7 @@ async function fetchCategoriesWithServices(): Promise<ICategory[]> {
 async function addCategory(newCategory: {
   categoryName: string;
   description: string;
+  imageUrl: string;
 }) {
   const token = localStorage.getItem("admin_token");
   const res = await fetch("/api/categories", {
@@ -90,6 +93,7 @@ async function updateCategory(category: {
   _id: string;
   categoryName: string;
   description: string;
+  imageUrl: string;
 }) {
   const token = localStorage.getItem("admin_token");
   const res = await fetch("/api/categories", {
@@ -114,7 +118,10 @@ async function deleteCategory(categoryId: string) {
     },
     body: JSON.stringify({ id: categoryId }),
   });
-  if (!res.ok) throw new Error("Failed to delete category");
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(err.message);
+  };
   return res.json();
 }
 
@@ -123,6 +130,7 @@ async function addService(newService: {
   basePrice: number;
   category: string;
   description?: string;
+  imageUrl?: string;
 }) {
   const token = localStorage.getItem("admin_token");
   const res = await fetch("/api/services", {
@@ -142,6 +150,7 @@ async function updateService(service: {
   serviceName: string;
   basePrice: number;
   description?: string;
+  imageUrl?: string;
 }) {
   const token = localStorage.getItem("admin_token");
   const res = await fetch("/api/services", {
@@ -185,11 +194,13 @@ export default function ServicesPage() {
   const [categoryForm, setCategoryForm] = useState({
     categoryName: "",
     description: "",
+    imageUrl: "",
   });
   const [serviceForm, setServiceForm] = useState({
     serviceName: "",
     basePrice: "",
     description: "",
+    imageUrl: "",
     category: "",
   });
 
@@ -274,12 +285,13 @@ export default function ServicesPage() {
   });
 
   const resetCategoryForm = () =>
-    setCategoryForm({ categoryName: "", description: "" });
+    setCategoryForm({ categoryName: "", description: "", imageUrl: "" });
   const resetServiceForm = () =>
     setServiceForm({
       serviceName: "",
       basePrice: "",
       description: "",
+      imageUrl: "",
       category: "",
     });
 
@@ -301,8 +313,14 @@ export default function ServicesPage() {
     setCategoryForm({
       categoryName: category.categoryName,
       description: category.description || "",
+      imageUrl: category.imageUrl || "",
     });
     window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+  const handleDeleteCategory = (categoryId: string) => {
+    if (window.confirm("Are you sure you want to delete this category?")) {
+      deleteCategoryMutation.mutate(categoryId);
+    }
   };
   const handleAddService = (e: React.FormEvent) => {
     e.preventDefault();
@@ -322,6 +340,7 @@ export default function ServicesPage() {
         serviceName: serviceForm.serviceName,
         basePrice: Number.parseFloat(serviceForm.basePrice),
         description: serviceForm.description,
+        imageUrl: serviceForm.imageUrl
       });
     }
   };
@@ -332,6 +351,7 @@ export default function ServicesPage() {
       serviceName: service.serviceName,
       basePrice: service.basePrice.toString(),
       description: service.description || "",
+      imageUrl: service.imageUrl || "",
       category: service.category._id,
     });
     setTimeout(() => {
@@ -409,6 +429,17 @@ export default function ServicesPage() {
                 />
               </div>
             </div>
+             <div className="space-y-2">
+              <Label htmlFor="categoryImageUrl">Image URL</Label>
+              <Input
+                id="categoryImageUrl"
+                placeholder="https://example.com/image.png"
+                value={categoryForm.imageUrl}
+                onChange={(e) =>
+                  setCategoryForm({ ...categoryForm, imageUrl: e.target.value })
+                }
+              />
+            </div>
             <div className="flex gap-2">
               <Button
                 type="submit"
@@ -467,6 +498,13 @@ export default function ServicesPage() {
                           >
                             <Edit className="h-4 w-4 mr-2" /> Edit Category
                           </Button>
+                           <Button
+                            size="sm"
+                            variant="destructive"
+                            onClick={() => handleDeleteCategory(category._id)}
+                          >
+                            <Trash2 className="h-4 w-4 mr-2" /> Delete Category
+                          </Button>
                           <Button
                             size="sm"
                             onClick={() => {
@@ -477,6 +515,7 @@ export default function ServicesPage() {
                                 serviceName: "",
                                 basePrice: "",
                                 description: "",
+                                imageUrl: "",
                                 category: category._id,
                               });
                               setTimeout(() => {
@@ -544,6 +583,19 @@ export default function ServicesPage() {
                                       setServiceForm({
                                         ...serviceForm,
                                         description: e.target.value,
+                                      })
+                                    }
+                                  />
+                                </div>
+                                <div className="space-y-2">
+                                  <Label htmlFor="imageUrl">Image URL</Label>
+                                  <Input
+                                    id="imageUrl"
+                                    value={serviceForm.imageUrl}
+                                    onChange={(e) =>
+                                      setServiceForm({
+                                        ...serviceForm,
+                                        imageUrl: e.target.value,
                                       })
                                     }
                                   />

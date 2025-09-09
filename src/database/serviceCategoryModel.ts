@@ -4,6 +4,7 @@ export interface IServiceCategory extends Document {
   categoryName: string;
   description?: string;
   iconUrl?: string;
+  imageUrl?: string;
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -14,6 +15,7 @@ const serviceCategorySchema = new Schema<IServiceCategory>(
     categoryName: { type: String, required: true, unique: true },
     description: { type: String },
     iconUrl: { type: String },
+    imageUrl: { type: String },
     isActive: { type: Boolean, default: true },
   },
   { timestamps: true }
