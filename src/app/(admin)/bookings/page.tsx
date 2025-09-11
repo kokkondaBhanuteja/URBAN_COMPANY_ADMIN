@@ -31,8 +31,8 @@ interface IBooking {
     userId:{userName: string} ;
     providerId?: { userId: { userName: string } };
     serviceId: { serviceName: string };
-    status: string;
-    scheduledDateTime: string;
+    bookingStatus: string;
+    scheduledAt: string;
     startedAt?: string;
     completedAt?: string;
     serviceAddress: {
@@ -41,7 +41,6 @@ interface IBooking {
         pincode: string;
     };
     pricing: { basePrice: number, finalAmount: number };
-    paymentDetails: { paymentStatus: string };
     specialInstructions?: string;
     createdAt: string;
     updatedAt: string;
@@ -58,7 +57,7 @@ interface IBookingStats {
     cancelled: number;
 }
 
-async function fetchBookings(page: number, search: string, status: string, startDate: string, endDate: string, paymentStatus: string, specialInstructions: string): Promise<IBookingsData> {
+async function fetchBookings(page: number, search: string, status: string, startDate: string, endDate: string, specialInstructions: string): Promise<IBookingsData> {
     const token = localStorage.getItem('admin_token');
     const url = new URL('/api/bookings', window.location.origin);
     url.searchParams.append('page', page.toString());
@@ -67,7 +66,6 @@ async function fetchBookings(page: number, search: string, status: string, start
     if (status) url.searchParams.append('status', status);
     if (startDate) url.searchParams.append('startDate', startDate);
     if (endDate) url.searchParams.append('endDate', endDate);
-    if (paymentStatus) url.searchParams.append('paymentStatus', paymentStatus);
     if (specialInstructions) url.searchParams.append('specialInstructions', specialInstructions);
 
     const res = await fetch(url.toString(), {
@@ -104,27 +102,8 @@ const getStatusBadgeVariant = (status: string) => {
       return 'bg-blue-100 text-blue-800';
     case 'in_progress':
       return 'bg-yellow-100 text-yellow-800';
-    case 'successful':
-        return 'bg-green-100 text-green-800';
-    case 'pending':
-        return 'bg-yellow-100 text-yellow-800';
-    case 'failed':
-        return 'bg-red-100 text-red-800';
     default:
       return 'bg-gray-100 text-gray-800';
-  }
-};
-
-const getPaymentStatusText = (status: string) => {
-  switch (status) {
-      case 'successful':
-          return 'Successful';
-      case 'pending':
-          return 'Pending';
-      case 'failed':
-          return 'Failed';
-      default:
-          return 'N/A';
   }
 };
 
@@ -133,18 +112,16 @@ export default function BookingsPage() {
     const [searchInput, setSearchInput] = useState('');
     const [statusFilter, setStatusFilter] = useState('all');
     const [dateRange, setDateRange] = useState({startDate: '', endDate: ''});
-    const [paymentStatusFilter, setPaymentStatusFilter] = useState('all');
     const [specialInstructionsSearch, setSpecialInstructionsSearch] = useState('');
     
     const [activeSearch, setActiveSearch] = useState('');
     const [activeStatus, setActiveStatus] = useState('all');
     const [activeDateRange, setActiveDateRange] = useState({startDate: '', endDate: ''});
-    const [activePaymentStatus, setActivePaymentStatus] = useState('all');
     const [activeSpecialInstructions, setActiveSpecialInstructions] = useState('');
 
     const { data, isLoading, isError, refetch } = useQuery<IBookingsData>({
-        queryKey: ['bookings', currentPage, activeSearch, activeStatus, activeDateRange, activePaymentStatus, activeSpecialInstructions],
-        queryFn: () => fetchBookings(currentPage, activeSearch, activeStatus === 'all' ? '' : activeStatus, activeDateRange.startDate, activeDateRange.endDate, activePaymentStatus === 'all' ? '' : activePaymentStatus, activeSpecialInstructions),
+        queryKey: ['bookings', currentPage, activeSearch, activeStatus, activeDateRange, activeSpecialInstructions],
+        queryFn: () => fetchBookings(currentPage, activeSearch, activeStatus === 'all' ? '' : activeStatus, activeDateRange.startDate, activeDateRange.endDate, activeSpecialInstructions),
         keepPreviousData: true,
     });
 
@@ -160,7 +137,6 @@ export default function BookingsPage() {
         setActiveSearch(searchInput);
         setActiveStatus(statusFilter);
         setActiveDateRange(dateRange);
-        setActivePaymentStatus(paymentStatusFilter);
         setActiveSpecialInstructions(specialInstructionsSearch);
     };
 
@@ -168,13 +144,11 @@ export default function BookingsPage() {
         setSearchInput('');
         setStatusFilter('all');
         setDateRange({ startDate: '', endDate: '' });
-        setPaymentStatusFilter('all');
         setSpecialInstructionsSearch('');
         setCurrentPage(1);
         setActiveSearch('');
         setActiveStatus('all');
         setActiveDateRange({ startDate: '', endDate: '' });
-        setActivePaymentStatus('all');
         setActiveSpecialInstructions('');
     };
 
@@ -228,17 +202,6 @@ export default function BookingsPage() {
                         <SelectItem value="completed">Completed</SelectItem>
                     </SelectContent>
                 </Select>
-                <Select onValueChange={setPaymentStatusFilter} value={paymentStatusFilter}>
-                    <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Filter by Payment Status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="all">All Payment Statuses</SelectItem>
-                        <SelectItem value="successful">Successful</SelectItem>
-                        <SelectItem value="pending">Pending</SelectItem>
-                        <SelectItem value="failed">Failed</SelectItem>
-                    </SelectContent>
-                </Select>
                 <Input
                     type="date"
                     placeholder="Start Date"
@@ -251,7 +214,7 @@ export default function BookingsPage() {
                     value={dateRange.endDate}
                     onChange={(e) => setDateRange(prev => ({ ...prev, endDate: e.target.value }))}
                 />
-                <div className="flex gap-2">
+                <div className="flex gap-2 col-span-1 sm:col-span-2 lg:col-span-1">
                     <Button onClick={handleFilter} className="w-full"><SearchIcon className="h-4 w-4 mr-2" />Filter</Button>
                     <Button onClick={handleClearFilters} variant="outline" className="w-full"><FilterX className="h-4 w-4 mr-2" />Clear</Button>
                 </div>
@@ -275,7 +238,6 @@ export default function BookingsPage() {
                     <TableHead>Status</TableHead>
                     <TableHead>Service Address</TableHead>
                     <TableHead>Pricing Details</TableHead>
-                    <TableHead>Payment Status</TableHead>
                     <TableHead>Special Instructions</TableHead>
                     <TableHead>Scheduled Date/Time</TableHead>
                     <TableHead>Created At</TableHead>
@@ -291,8 +253,8 @@ export default function BookingsPage() {
                         <TableCell>{booking.providerId?.userId?.userName ?? 'N/A'}</TableCell>
                         <TableCell>{booking.serviceId?.serviceName ?? 'N/A'}</TableCell>
                         <TableCell>
-                          <Badge className={getStatusBadgeVariant(booking.status ?? '')}>
-                            {booking.status?.replace(/_/g, " ") ?? 'N/A'}
+                          <Badge className={getStatusBadgeVariant(booking.bookingStatus ?? '')}>
+                            {booking.bookingStatus?.replace(/_/g, " ") ?? 'N/A'}
                           </Badge>
                         </TableCell>
                         <TableCell>
@@ -304,20 +266,15 @@ export default function BookingsPage() {
                               <span className="font-semibold">Final: ${booking.pricing?.finalAmount.toFixed(2) ?? 'N/A'}</span>
                           </div>
                         </TableCell>
-                        <TableCell>
-                          <Badge className={getStatusBadgeVariant(booking.paymentDetails?.paymentStatus ?? '')}>
-                             {getPaymentStatusText(booking.paymentDetails?.paymentStatus ?? 'N/A')}
-                          </Badge>
-                        </TableCell>
                         <TableCell className="max-w-xs">{booking.specialInstructions ?? 'N/A'}</TableCell>
-                        <TableCell>{booking.scheduledDateTime ? new Date(booking.scheduledDateTime).toLocaleString() : 'N/A'}</TableCell>
+                        <TableCell>{booking.scheduledAt ? new Date(booking.scheduledAt).toLocaleString() : 'N/A'}</TableCell>
                         <TableCell>{new Date(booking.createdAt).toLocaleString()}</TableCell>
                         <TableCell>{new Date(booking.updatedAt).toLocaleString()}</TableCell>
                       </TableRow>
                     ))
                   ) : (
                     <TableRow>
-                      <TableCell colSpan={12} className="text-center">
+                      <TableCell colSpan={11} className="text-center">
                         No bookings found.
                       </TableCell>
                     </TableRow>

@@ -25,11 +25,15 @@ export const getAllBookings = async (
   const matchConditions: any = {};
 
   if (statusFilter) {
-    matchConditions.status = statusFilter;
+    if (statusFilter === 'cancelled') {
+        matchConditions.bookingStatus = { $in: ['cancelled_by_user', 'cancelled_by_provider', 'cancelled'] };
+    } else {
+        matchConditions.bookingStatus = statusFilter;
+    }
   }
 
   if (startDate && endDate) {
-    matchConditions.scheduledDateTime = {
+    matchConditions.scheduledAt = {
       $gte: new Date(startDate),
       $lte: new Date(endDate),
     };
@@ -37,7 +41,7 @@ export const getAllBookings = async (
       const date = new Date(startDate);
       const nextDate = new Date(date);
       nextDate.setDate(date.getDate() + 1);
-      matchConditions.scheduledDateTime = {
+      matchConditions.scheduledAt = {
         $gte: date,
         $lt: nextDate
       };
@@ -118,10 +122,10 @@ export const getAllBookings = async (
       }
     });
   }
-
-  if (statusFilter) {
+  
+  if (Object.keys(matchConditions).length > 0) {
     pipeline.push({
-      $match: { "status": statusFilter }
+      $match: matchConditions
     });
   }
   
@@ -134,7 +138,7 @@ export const getAllBookings = async (
   const countPipeline = [...pipeline, { $count: 'total' }];
 
   pipeline.push(
-    { $sort: { scheduledDateTime: -1 } },
+    { $sort: { scheduledAt: -1 } },
     { $skip: skip },
     { $limit: limit }
   )
@@ -254,8 +258,8 @@ export const searchBookings = async (query: string): Promise<any[]> => {
           userId: "$providerUserDetails",
         },
         serviceId: "$serviceDetails",
-        status: "$status",
-        scheduledDateTime: "$scheduledDateTime",
+        status: "$bookingStatus",
+        scheduledDateTime: "$scheduledAt",
         pricing: 1,
         paymentDetails: 1,
         specialInstructions: 1
@@ -267,9 +271,9 @@ export const searchBookings = async (query: string): Promise<any[]> => {
 // ✅ Booking stats (fixed field name)
 export const getBookingStats = async () => {
   const total = await Booking.countDocuments();
-  const completed = await Booking.countDocuments({ status: "completed" });
+  const completed = await Booking.countDocuments({ bookingStatus: "completed" });
   const cancelled = await Booking.countDocuments({
-    status: { $in: ["cancelled_by_user", "cancelled_by_provider","cancelled"] },
+    bookingStatus: { $in: ["cancelled_by_user", "cancelled_by_provider","cancelled"] },
   });
 
   return { total, completed, cancelled };
