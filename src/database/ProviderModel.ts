@@ -3,7 +3,6 @@ import mongoose, { Document, Schema, Types } from "mongoose";
 export interface IAvailability {
   startTime: Date;
   endTime: Date;
-  isUnavailable: boolean;
 }
 
 export interface IProvider extends Document {
@@ -24,7 +23,6 @@ const availabilitySchema = new Schema<IAvailability>(
   {
     startTime: { type: Date, required: true },
     endTime: { type: Date, required: true },
-    isUnavailable: { type: Boolean, default: false },
   },
   { _id: false }
 );

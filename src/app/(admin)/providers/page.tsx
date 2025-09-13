@@ -61,11 +61,11 @@ interface IProvider {
   bio: string;
   servicesOffered: { serviceName: string }[];
   isVerified: boolean;
+  isActive: boolean;
   averageRating?: number;
   availability: {
     startTime: string;
     endTime: string;
-    isUnavailable: boolean;
   }[];
 }
 
@@ -395,12 +395,12 @@ export default function ProvidersPage() {
                             <Badge
                               variant="secondary"
                               className={
-                                !provider.availability[0].isUnavailable
+                                !provider.isActive
                                   ? "bg-green-100 text-green-800"
                                   : "bg-gray-100 text-gray-800"
                               }
                             >
-                              {!provider.availability[0].isUnavailable
+                              {!provider.isActive
                                 ? "Available"
                                 : "Unavailable"}
                             </Badge>
