@@ -37,11 +37,11 @@ export async function PATCH(req: NextRequest) {
     const adminAuthResponse = await adminMiddleware(req);
     if (adminAuthResponse.status !== 200) return adminAuthResponse;
     try {
-        const { _id, ...updateData } = await req.json();
-        if (!_id) {
+        const { id, ...updateData } = await req.json();
+        if (!id) {
             return NextResponse.json({ message: "Category ID is required" }, { status: 400 });
         }
-        const updatedCategory = await ServiceCategory.findByIdAndUpdate(_id, updateData, { new: true });
+        const updatedCategory = await ServiceCategory.findByIdAndUpdate(id, updateData, { new: true });
         if (!updatedCategory) {
             return NextResponse.json({ message: "Category not found" }, { status: 404 });
         }
