@@ -38,6 +38,9 @@ const serviceSchema = new Schema<IService>(
 // Index for faster lookups by category
 serviceSchema.index({ category: 1 });
 
+// Add a text index for searching
+serviceSchema.index({ serviceName: "text", description: "text" });
+
 const Service = mongoose.models.Service || mongoose.model<IService>("Service", serviceSchema);
 
 export default Service;

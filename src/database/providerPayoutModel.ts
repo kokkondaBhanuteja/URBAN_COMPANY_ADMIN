@@ -7,7 +7,7 @@ export interface IProviderPayout extends Document {
   commissionAmount: number;       
   netPayout: number;              
   status: "pending" | "processed" | "failed";
-  paymentMethod: "net-banking" | "upi" | "credit-card" | "debit-card";
+  paymentMethod: string; // Changed from enum to string
   processedAt?: Date;
   requestedAt: Date;
   createdAt: Date;
@@ -25,11 +25,9 @@ const providerPayoutSchema = new Schema<IProviderPayout>(
       type: String,
       enum: ["pending", "processed", "failed"],
       default: "pending",
-      index: true,
     },
     paymentMethod: {
-      type: String,
-      enum: ["net-banking", "upi", "credit-card", "debit-card"],
+      type: String, // Changed from enum to string
       default: "upi",
     },
     processedAt: { type: Date },

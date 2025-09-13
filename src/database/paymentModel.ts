@@ -1,10 +1,11 @@
 import mongoose, { Document, Schema, Types } from "mongoose";
 
 export interface IPayment extends Document {
-  bookingId: Types.ObjectId;
+  orderId: string;
+  bookingIds: Types.ObjectId[]; // <-- ADD THIS
   userId: Types.ObjectId;
   amount: number;
-  paymentMethod: "credit_card" | "upi" | "net_banking" | "cod";
+  paymentMethod: string;
   paymentStatus: "pending" | "successful" | "failed";
   transactionId?: string;
   createdAt: Date;
@@ -13,12 +14,16 @@ export interface IPayment extends Document {
 
 const paymentSchema = new Schema<IPayment>(
   {
-    bookingId: {
-      type: Schema.Types.ObjectId,
-      ref: "Booking",
+    orderId: {
+      type: String,
       required: true,
       unique: true,
     },
+    bookingIds: [{ // <-- ADD THIS
+      type: Schema.Types.ObjectId,
+      ref: 'Booking',
+      required: true,
+    }],
     userId: {
       type: Schema.Types.ObjectId,
       ref: "User",
@@ -28,7 +33,6 @@ const paymentSchema = new Schema<IPayment>(
     amount: { type: Number, required: true },
     paymentMethod: {
       type: String,
-      enum: ["credit_card", "upi", "net_banking", "cod"],
     },
     paymentStatus: {
       type: String,

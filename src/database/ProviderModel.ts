@@ -9,12 +9,12 @@ export interface IAvailability {
 export interface IProvider extends Document {
   userId: Types.ObjectId; // Ref to User
   bio?: string;
-  averageRating: number;
+  averageRating?: number;
   isVerified: boolean;
   isActive: boolean;
   onboardingDate: Date;
   servicesOffered: Types.ObjectId[]; // Ref to Service
-  serviceableLocations: string; 
+  serviceableLocations:  string[]; // e.g., city names or zip codes 
   availability: IAvailability[];
   createdAt: Date;
   updatedAt: Date;
@@ -26,7 +26,7 @@ const availabilitySchema = new Schema<IAvailability>(
     endTime: { type: Date, required: true },
     isUnavailable: { type: Boolean, default: false },
   },
-  { _id: false } // subdocument, no need for _id
+  { _id: false }
 );
 
 const providerSchema = new Schema<IProvider>(
@@ -46,7 +46,7 @@ const providerSchema = new Schema<IProvider>(
     servicesOffered: [{ type: Schema.Types.ObjectId, ref: "Service" }],
     serviceableLocations: [{ type: String }], // e.g., city names or zip codes
 
-    availability: [availabilitySchema],
+    availability: [availabilitySchema], // Array of availability slots
   },
   { timestamps: true }
 );

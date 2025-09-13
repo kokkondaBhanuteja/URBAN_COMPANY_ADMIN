@@ -1,16 +1,17 @@
-import mongoose, { Document, Schema } from "mongoose";
-import bcrypt from "bcryptjs";
+import mongoose, { type Document, Schema } from "mongoose"
+import bcrypt from "bcryptjs"
 
 export interface IUser extends Document {
-  userName: string;
-  email: string;
-  mobileNumber: string;
-  password?: string; // Make password optional for Google OAuth users
-  userType: "consumer" | "provider" | "admin";
-  googleId?: string;
-  createdAt: Date;
-  updatedAt: Date;
-  comparePassword(candidatePassword: string): Promise<boolean>;
+  userName: string
+  email: string
+  mobileNumber?: string // Make mobileNumber optional
+  password?: string
+  userType: "consumer" | "provider" | "admin"
+  googleId?: string
+  isVerified: boolean
+  createdAt: Date
+  updatedAt: Date
+  comparePassword(candidatePassword: string): Promise<boolean>
 }
 
 const userSchema = new Schema<IUser>(
@@ -23,40 +24,45 @@ const userSchema = new Schema<IUser>(
       lowercase: true,
       trim: true,
     },
-    mobileNumber: { type: String, required: true, unique: true },
+    // Make mobileNumber optional by removing 'required: true' and 'unique: true'
+    mobileNumber: { type: String },
     password: { type: String },
     userType: {
       type: String,
       enum: ["consumer", "provider", "admin"],
-      default: "consumer", // Set a default user type
+      default: "consumer",
     },
     googleId: {
       type: String,
       unique: true,
       sparse: true,
     },
+    isVerified: {
+      type: Boolean,
+      default: false,
+    },
   },
-  { timestamps: true }
-);
+  { timestamps: true },
+)
 
-userSchema.pre<IUser>('save', async function (next) {
-  if (!this.isModified('password') || !this.password) {
-    return next();
+userSchema.pre<IUser>("save", async function (next) {
+  if (!this.isModified("password") || !this.password) {
+    return next()
   }
   try {
-    const salt = await bcrypt.genSalt(10);
-    this.password = await bcrypt.hash(this.password, salt);
-    next();
-  } catch (error:any) {
-    next(error);
+    const salt = await bcrypt.genSalt(10)
+    this.password = await bcrypt.hash(this.password, salt)
+    next()
+  } catch (error: any) {
+    next(error)
   }
-});
+})
 
 userSchema.methods.comparePassword = function (candidatePassword: string): Promise<boolean> {
-  if (!this.password) return Promise.resolve(false);
-  return bcrypt.compare(candidatePassword, this.password);
-};
+  if (!this.password) return Promise.resolve(false)
+  return bcrypt.compare(candidatePassword, this.password)
+}
 
-const User = mongoose.models.User || mongoose.model<IUser>("User", userSchema);
+const User = mongoose.models.User || mongoose.model<IUser>("User", userSchema)
 
-export default User;
+export default User
