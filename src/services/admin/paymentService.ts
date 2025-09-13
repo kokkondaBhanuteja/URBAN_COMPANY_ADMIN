@@ -20,7 +20,7 @@ export const getAllPayments = async (
   totalRevenue: number;
 }> => {
   const skip = (page - 1) * limit;
-  let matchQuery = {};
+  let matchQuery: any = {};
 
   if (statusFilter) {
     matchQuery = { paymentStatus: statusFilter };
@@ -41,14 +41,17 @@ export const getAllPayments = async (
 
   const pipeline = [
     {
+      $unwind: "$bookingIds",
+    },
+    {
       $lookup: {
         from: Booking.collection.name,
-        localField: "bookingId",
+        localField: "bookingIds",
         foreignField: "_id",
         as: "bookingDetails",
       },
     },
-    { $unwind: { path: "$bookingDetails", preserveNullAndEmptyArrays: true } },
+    { $unwind: "$bookingDetails" },
     {
       $lookup: {
         from: "providers",
@@ -79,6 +82,17 @@ export const getAllPayments = async (
       },
     },
     {
+      $group: {
+        _id: "$_id",
+        amount: { $first: "$amount" },
+        paymentStatus: { $first: "$paymentStatus" },
+        paymentMethod: { $first: "$paymentMethod" },
+        providerNames: { $push: "$providerUserDetails.userName" },
+        createdAt: { $first: "$createdAt" },
+        bookingId: { $first: "$bookingIds" }, // This is now a single booking ID per grouped payment
+      },
+    },
+    {
       $facet: {
         payments: [
           { $skip: skip },
@@ -90,13 +104,13 @@ export const getAllPayments = async (
               amount: 1,
               paymentStatus: 1,
               paymentMethod: 1,
-              providerName: "$providerUserDetails.userName",
-              createdAt: 1
+              providerName: { $arrayElemAt: ["$providerNames", 0] }, // Get the first provider name
+              createdAt: 1,
             },
           },
         ],
         totalCount: [
-          { $count: "count" }
+          { $group: { _id: null, count: { $sum: 1 } } }
         ],
         totalRevenue: [
           { $group: { _id: null, total: { $sum: "$amount" } } }
@@ -105,10 +119,11 @@ export const getAllPayments = async (
     }
   ];
 
-  const result = await Payment.aggregate(pipeline);
-  const payments = result[0].payments;
-  const totalPayments = result[0].totalCount.length > 0 ? result[0].totalCount[0].count : 0;
-  const totalRevenue = result[0].totalRevenue.length > 0 ? result[0].totalRevenue[0].total : 0;
+  const [result] = await Payment.aggregate(pipeline);
+  const payments = result?.payments || [];
+  const totalPayments = result?.totalCount[0]?.count || 0;
+  const totalRevenue = result?.totalRevenue[0]?.total || 0;
+
   return { payments, totalPayments, totalRevenue };
 };
 
@@ -125,9 +140,9 @@ export const getPaymentStats = async () => {
     },
   ]);
 
-  return { 
-    successful, 
-    failed, 
+  return {
+    successful,
+    failed,
     pending,
     totalRevenue: totalRevenue.length > 0 ? totalRevenue[0].total : 0,
   };
