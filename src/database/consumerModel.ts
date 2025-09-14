@@ -2,6 +2,7 @@ import mongoose, { type Document, Schema, type Types } from "mongoose"
 
 export interface IConsumer extends Document {
   userId: Types.ObjectId // Ref to User
+  walletId: Types.ObjectId // Ref to Wallet <--- ADD THIS
   address?: {
     addressLine1: string
     city: string
@@ -27,6 +28,10 @@ const consumerSchema = new Schema<IConsumer>(
       ref: "User",
       required: true,
       unique: true,
+    },
+    walletId: { // <--- ADD THIS
+        type: Schema.Types.ObjectId,
+        ref: "Wallet",
     },
     address: {
       addressLine1: { type: String },

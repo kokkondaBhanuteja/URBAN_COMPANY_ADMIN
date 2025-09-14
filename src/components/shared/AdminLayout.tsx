@@ -16,6 +16,7 @@ import {
   ClipboardList,
   Tag,
   CreditCard,
+  Banknote,
 } from "lucide-react"
 import Loader from "./Loader"
 
@@ -28,6 +29,7 @@ const sidebarItems = [
   { href: "/services", icon: ClipboardList, label: "Services" },
   { href: "/discounts", icon: Tag, label: "Discounts" },
   { href: "/provider-payments", icon: CreditCard, label: "Provider Payments" },
+  { href: "/financials", icon: Banknote, label: "Financials" },
   { href: "/settings", icon: Settings, label: "Settings" },
 ]
 
@@ -69,7 +71,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               <li key={item.href}>
                 <Link
                   href={item.href}
-                  className={`flex items-center gap-3 block py-2.5 px-4 rounded transition duration-200 ${
+                  className={`flex items-center gap-3  py-2.5 px-4 rounded transition duration-200 ${
                     pathname === `${item.href}` ? "bg-gray-100 text-gray-900" : "hover:bg-gray-50"
                   }`}
                 >
@@ -83,7 +85,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <div className="mt-auto">
           <button
             onClick={handleLogout}
-            className="flex items-center gap-3 block py-2.5 px-4 rounded transition duration-200 hover:bg-gray-50 w-full text-left"
+            className="flex items-center gap-3  py-2.5 px-4 rounded transition duration-200 hover:bg-gray-50 w-full text-left"
           >
             <LogOut className="h-5 w-5" />
             Logout

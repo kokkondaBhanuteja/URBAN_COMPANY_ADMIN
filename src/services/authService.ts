@@ -1,10 +1,18 @@
 import User, { IUser } from '../database/userModel';
+import Wallet from '@/database/walletModel';
 import jwt from 'jsonwebtoken';
 import { HydratedDocument } from 'mongoose';
 
 export const registerUser = async (userData: Partial<IUser>): Promise<HydratedDocument<IUser>> => {
     const user = new User(userData);
     await user.save();
+    if(user.userType === 'admin'){
+        const newWallet = new Wallet({
+            userId: user._id,
+            balance: 0,
+          });
+        await newWallet.save();
+    }
     return user;
 };
 

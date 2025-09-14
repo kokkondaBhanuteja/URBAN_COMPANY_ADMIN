@@ -7,13 +7,14 @@ export interface IAvailability {
 
 export interface IProvider extends Document {
   userId: Types.ObjectId; // Ref to User
+  walletId: Types.ObjectId; // <-- ADD THIS LINE
   bio?: string;
   averageRating?: number;
   isVerified: boolean;
   isActive: boolean;
   onboardingDate: Date;
   servicesOffered: Types.ObjectId[]; // Ref to Service
-  serviceableLocations:  string[]; // e.g., city names or zip codes 
+  serviceableLocations: string;
   availability: IAvailability[];
   createdAt: Date;
   updatedAt: Date;
@@ -34,6 +35,11 @@ const providerSchema = new Schema<IProvider>(
       ref: "User",
       required: true,
       unique: true,
+    },
+    walletId: { // <-- ADD THIS BLOCK
+      type: Schema.Types.ObjectId,
+      ref: "Wallet",
+      required: true,
     },
     bio: { type: String },
     averageRating: { type: Number, default: 0 },

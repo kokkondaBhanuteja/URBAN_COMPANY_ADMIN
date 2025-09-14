@@ -6,7 +6,7 @@ export interface IBooking extends Document {
   userId: Types.ObjectId;
   providerId?: Types.ObjectId | null;
   serviceId: Types.ObjectId;
-
+  bookingOtp?: string;
   serviceAddress: {
     addressLine1: string;
     city: string;
@@ -45,6 +45,7 @@ const bookingSchema = new Schema<IBooking>(
     userId: { type: Schema.Types.ObjectId, ref: "User", required: true },
     providerId: { type: Schema.Types.ObjectId, ref: "Provider" }, // Nullable
     serviceId: { type: Schema.Types.ObjectId, ref: "Service", required: true },
+    bookingOtp: { type: String },
 
     serviceAddress: {
       addressLine1: { type: String, required: true },
