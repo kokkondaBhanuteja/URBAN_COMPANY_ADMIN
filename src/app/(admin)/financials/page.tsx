@@ -20,15 +20,33 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { DollarSign, TrendingUp, TrendingDown, Wallet } from "lucide-react";
+import { DollarSign, TrendingUp, TrendingDown, Wallet, FilterX } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
 
 // API call function
-async function fetchFinancials(page: number) {
+async function fetchFinancials(page: number, filters: { type: string, startDate: string, endDate: string }) {
   const token = localStorage.getItem("admin_token");
   const url = new URL("/api/financials", window.location.origin);
   url.searchParams.append("page", page.toString());
+  if (filters.type && filters.type !== 'all') {
+    url.searchParams.append('type', filters.type);
+  }
+  if (filters.startDate) {
+    url.searchParams.append('startDate', filters.startDate);
+  }
+  if (filters.endDate) {
+    url.searchParams.append('endDate', filters.endDate);
+  }
   const res = await fetch(url.toString(), {
     headers: { Authorization: `Bearer ${token}` },
   });
@@ -40,12 +58,25 @@ async function fetchFinancials(page: number) {
 
 export default function FinancialsPage() {
   const [currentPage, setCurrentPage] = useState(1);
+  const [filters, setFilters] = useState({
+    type: "all",
+    startDate: "",
+    endDate: "",
+  });
 
   const { data, isLoading, isError, error, refetch } = useQuery({
-    queryKey: ["financials", currentPage],
-    queryFn: () => fetchFinancials(currentPage),
+    queryKey: ["financials", currentPage, filters],
+    queryFn: () => fetchFinancials(currentPage, filters),
     keepPreviousData: true,
   });
+
+  const handleClearFilters = () => {
+    setFilters({
+      type: "all",
+      startDate: "",
+      endDate: "",
+    });
+  };
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("en-IN", {
@@ -79,6 +110,44 @@ export default function FinancialsPage() {
 
       <Card>
         <CardHeader>
+            <CardTitle>Filter Transactions</CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-wrap items-center gap-4">
+        <Select
+            value={filters.type}
+            onValueChange={(value) => setFilters(prev => ({ ...prev, type: value }))}
+          >
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Transaction Type" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Types</SelectItem>
+              <SelectItem value="revenue">Revenue</SelectItem>
+              <SelectItem value="commission">Commission</SelectItem>
+              <SelectItem value="payout">Payout</SelectItem>
+              <SelectItem value="refund">Refund</SelectItem>
+            </SelectContent>
+          </Select>
+          <Input
+            type="date"
+            placeholder="Start Date"
+            value={filters.startDate}
+            onChange={(e) => setFilters(prev => ({ ...prev, startDate: e.target.value }))}
+            className="max-w-sm"
+            />
+          <Input
+            type="date"
+            placeholder="End Date"
+            value={filters.endDate}
+            onChange={(e) => setFilters(prev => ({ ...prev, endDate: e.target.value }))}
+            className="max-w-sm"
+            />
+          <Button onClick={handleClearFilters} variant="outline"><FilterX className="h-4 w-4 mr-2" />Clear</Button>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
           <CardTitle>Platform Ledger</CardTitle>
           <CardDescription>An immutable record of all financial transactions.</CardDescription>
         </CardHeader>
@@ -89,8 +158,7 @@ export default function FinancialsPage() {
                 <TableHead>Date</TableHead>
                 <TableHead>Type</TableHead>
                 <TableHead>Description</TableHead>
-                <TableHead className="text-right">Credit</TableHead>
-                <TableHead className="text-right">Debit</TableHead>
+                <TableHead className="text-right">Amount</TableHead>
                 <TableHead className="text-right">Platform Balance</TableHead>
               </TableRow>
             </TableHeader>
@@ -100,8 +168,9 @@ export default function FinancialsPage() {
                   <TableCell>{new Date(tx.transactionDate).toLocaleString()}</TableCell>
                   <TableCell><Badge className={getTransactionTypeBadge(tx.type)}>{tx.type}</Badge></TableCell>
                   <TableCell>{tx.description}</TableCell>
-                  <TableCell className="text-right text-green-600">{tx.credit > 0 ? formatCurrency(tx.credit) : '-'}</TableCell>
-                  <TableCell className="text-right text-red-600">{tx.debit > 0 ? formatCurrency(tx.debit) : '-'}</TableCell>
+                  <TableCell className={`text-right font-medium ${tx.credit > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    {tx.credit > 0 ? formatCurrency(tx.credit) : formatCurrency(tx.debit)}
+                  </TableCell>
                   <TableCell className="text-right font-medium">{formatCurrency(tx.platformBalance)}</TableCell>
                 </TableRow>
               ))}

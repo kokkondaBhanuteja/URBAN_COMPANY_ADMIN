@@ -16,6 +16,10 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const page = parseInt(searchParams.get("page") || "1", 10);
     const limit = parseInt(searchParams.get("limit") || "10", 10);
+    const transactionType = searchParams.get("type");
+    const startDate = searchParams.get("startDate");
+    const endDate = searchParams.get("endDate");
+
 
     // --- 1. Get High-Level Stats ---
     const totalRevenueResult = await Payment.aggregate([
@@ -41,11 +45,24 @@ export async function GET(req: NextRequest) {
 
     // --- 3. Get Ledger Transactions (Paginated) ---
     const skip = (page - 1) * limit;
-    const transactions = await LedgerTransaction.find({})
+
+    const matchQuery: any = {};
+    if (transactionType && transactionType !== 'all') {
+      matchQuery.type = transactionType;
+    }
+    if (startDate) {
+        matchQuery.transactionDate = { ...matchQuery.transactionDate, $gte: new Date(startDate) };
+    }
+    if (endDate) {
+        matchQuery.transactionDate = { ...matchQuery.transactionDate, $lte: new Date(endDate) };
+    }
+
+
+    const transactions = await LedgerTransaction.find(matchQuery)
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);
-    const totalTransactions = await LedgerTransaction.countDocuments();
+    const totalTransactions = await LedgerTransaction.countDocuments(matchQuery);
 
     return NextResponse.json({
       summary: {
