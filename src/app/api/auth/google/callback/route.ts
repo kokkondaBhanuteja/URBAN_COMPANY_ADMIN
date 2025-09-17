@@ -3,6 +3,8 @@ import passport from '@/lib/passport';
 import { loginUser } from '@/services/authService';
 import { IUser } from '@/database/userModel'; // 1. Import the IUser type
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(req: NextRequest) {
   // Another workaround to get passport to play nice
   const user = await new Promise<IUser | false>((resolve, reject) => { // 2. Use the IUser type here
