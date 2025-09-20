@@ -6,13 +6,23 @@ import ProviderPayout from "@/database/providerPayoutModel";
 import LedgerTransaction from "@/database/ledgerTransactionModel";
 import Wallet from "@/database/walletModel";
 import User from "@/database/userModel";
+import logger from "@/lib/logger";
 
 export async function GET(req: NextRequest) {
-  await connectDb();
-  const adminAuthResponse = await adminMiddleware(req);
-  if (adminAuthResponse.status !== 200) return adminAuthResponse;
-
+    const connection = await connectDb();
+    if (!connection) {
+        return NextResponse.json({ message: "Database connection failed" }, { status: 500 });
+    }
+    const { db, session } = connection;
   try {
+    session.startTransaction();
+    logger.info("GET /api/financials transaction started");
+    const adminAuthResponse = await adminMiddleware(req);
+    if (adminAuthResponse.status !== 200) {
+        await session.abortTransaction();
+        return adminAuthResponse;
+    }
+
     const { searchParams } = new URL(req.url);
     const page = parseInt(searchParams.get("page") || "1", 10);
     const limit = parseInt(searchParams.get("limit") || "10", 10);
@@ -25,21 +35,21 @@ export async function GET(req: NextRequest) {
     const totalRevenueResult = await Payment.aggregate([
       { $match: { paymentStatus: "successful" } },
       { $group: { _id: null, total: { $sum: "$amount" } } },
-    ]);
+    ]).session(session);
     const totalPayoutsResult = await ProviderPayout.aggregate([
       { $match: { status: "processed" } },
       { $group: { _id: null, total: { $sum: "$netPayout" } } },
-    ]);
+    ]).session(session);
 
     const totalRevenue = totalRevenueResult[0]?.total || 0;
     const totalPayouts = totalPayoutsResult[0]?.total || 0;
     const grossProfit = totalRevenue - totalPayouts;
 
     // --- 2. Get Admin Wallet Balance ---
-    const adminUser = await User.findOne({ userType: 'admin' });
+    const adminUser = await User.findOne({ userType: 'admin' }).session(session);
     let adminWalletBalance = 0;
     if (adminUser) {
-        const adminWallet = await Wallet.findOne({ userId: adminUser._id });
+        const adminWallet = await Wallet.findOne({ userId: adminUser._id }).session(session);
         adminWalletBalance = adminWallet?.balance || 0;
     }
 
@@ -61,8 +71,12 @@ export async function GET(req: NextRequest) {
     const transactions = await LedgerTransaction.find(matchQuery)
       .sort({ createdAt: -1 })
       .skip(skip)
-      .limit(limit);
-    const totalTransactions = await LedgerTransaction.countDocuments(matchQuery);
+      .limit(limit)
+      .session(session);
+    const totalTransactions = await LedgerTransaction.countDocuments(matchQuery).session(session);
+
+    await session.commitTransaction();
+    logger.info("GET /api/financials transaction committed");
 
     return NextResponse.json({
       summary: {
@@ -78,10 +92,17 @@ export async function GET(req: NextRequest) {
       },
     });
   } catch (error: any) {
-    console.error("Financials fetch error:", error);
+    await session.abortTransaction();
+    logger.error("Financials fetch error:", {
+        message: (error as Error).message,
+        stack: (error as Error).stack,
+    });
     return NextResponse.json(
       { message: "An error occurred while fetching financial data" },
       { status: 500 }
     );
+  } finally {
+    session.endSession();
+    logger.info("GET /api/financials session ended");
   }
 }
